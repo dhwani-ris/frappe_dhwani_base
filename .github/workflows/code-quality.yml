@@ -1,0 +1,32 @@
+name: Code Quality
+
+on:
+  push:
+    branches: [ develop, master, main ]
+  pull_request:
+    branches: [ develop, master, main ]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Check for pre-commit config
+        run: |
+          if [ ! -f .pre-commit-config.yaml ]; then
+            echo "Pre-commit config not found. Downloading..."
+            curl -o .pre-commit-config.yaml https://raw.githubusercontent.com/dhwani-ris/frappe-pre-commit/main/examples/.pre-commit-config.yaml
+          else
+            echo "Pre-commit config already exists."
+          fi
+      
+      - name: Install pre-commit
+        run: pip install pre-commit
+      
+      - name: Run pre-commit
+        run: pre-commit run --all-files
