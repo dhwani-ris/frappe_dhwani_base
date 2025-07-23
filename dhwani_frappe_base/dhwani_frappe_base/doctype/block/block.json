@@ -1,0 +1,84 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "autoincrement",
+ "creation": "2025-07-23 13:32:48.008822",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "district",
+  "block_code",
+  "column_break_weyy",
+  "block_census_code",
+  "column_break_krkj",
+  "block_name"
+ ],
+ "fields": [
+  {
+   "fieldname": "column_break_weyy",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_krkj",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "district",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "District",
+   "options": "District",
+   "reqd": 1
+  },
+  {
+   "fieldname": "block_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Block Code",
+   "reqd": 1
+  },
+  {
+   "fieldname": "block_census_code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Block Census Code",
+   "reqd": 1
+  },
+  {
+   "fieldname": "block_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Block Name",
+   "reqd": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-07-23 13:38:39.670468",
+ "modified_by": "Administrator",
+ "module": "Dhwani Frappe Base",
+ "name": "Block",
+ "naming_rule": "Autoincrement",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "quick_entry": 1,
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "block_name"
+}
