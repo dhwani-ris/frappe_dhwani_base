@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "autoincrement",
  "creation": "2025-07-23 13:16:37.254433",
@@ -46,7 +47,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-23 13:38:40.087158",
+ "modified": "2025-07-30 11:38:22.367021",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "State",
