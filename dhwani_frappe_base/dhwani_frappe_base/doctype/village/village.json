@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "autoincrement",
  "creation": "2025-07-23 13:36:08.411664",
@@ -64,7 +65,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-23 13:38:39.303520",
+ "modified": "2025-07-30 11:51:33.855429",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Village",

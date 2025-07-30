@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "autoincrement",
  "creation": "2025-07-23 13:32:48.008822",
@@ -55,7 +56,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-23 13:38:39.670468",
+ "modified": "2025-07-30 11:51:12.428184",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Block",
