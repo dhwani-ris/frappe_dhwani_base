@@ -34,10 +34,10 @@
   },
   {
    "fieldname": "village_code",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Village Code",
-   "options": "Block",
+   "placeholder": "Enter the village code",
    "reqd": 1
   },
   {
@@ -65,7 +65,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-30 11:51:33.855429",
+ "modified": "2025-08-05 11:13:54.563231",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Village",
