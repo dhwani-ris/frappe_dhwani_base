@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "field:grampanchayat_name",
  "creation": "2025-07-23 13:34:08.115723",

@@ -1,6 +1,7 @@
 {
  "actions": [],
  "allow_import": 1,
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "field:district_name",
  "creation": "2025-07-23 13:19:03.685738",

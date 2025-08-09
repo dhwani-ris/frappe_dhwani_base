@@ -1,5 +1,6 @@
 {
  "actions": [],
+ "allow_import": 1,
  "allow_rename": 1,
  "autoname": "field:village_name",
  "creation": "2025-07-23 13:36:08.411664",
@@ -33,10 +34,10 @@
   },
   {
    "fieldname": "village_code",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Village Code",
-   "options": "Block",
+   "placeholder": "Enter the village code",
    "reqd": 1
   },
   {
