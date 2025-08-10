@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "autoincrement",
+ "autoname": "field:village_name",
  "creation": "2025-07-23 13:36:08.411664",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -52,7 +52,8 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Village Name",
-   "reqd": 1
+   "reqd": 1,
+   "unique": 1
   },
   {
    "fieldname": "grampanchayat",
@@ -65,11 +66,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-05 11:13:54.563231",
+ "modified": "2025-08-09 12:37:46.861686",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Village",
- "naming_rule": "Autoincrement",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
