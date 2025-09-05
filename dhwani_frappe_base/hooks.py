@@ -1,7 +1,7 @@
 app_name = "dhwani_frappe_base"
 app_title = "Dhwani Frappe Base"
 app_publisher = "Dhwani RIS"
-app_description = "A foundational Frappe app containing reusable components and utilities for rapid development across multiple projects."
+app_description = "A foundational Frappe app containing reusable components and utilities."
 app_email = "bhushan.barbuddhe@dhwaniris.com"
 app_license = "mit"
 
