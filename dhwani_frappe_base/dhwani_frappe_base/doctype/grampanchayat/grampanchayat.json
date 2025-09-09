@@ -2,7 +2,7 @@
  "actions": [],
  "allow_import": 1,
  "allow_rename": 1,
- "autoname": "autoincrement",
+ "autoname": "field:grampanchayat_name",
  "creation": "2025-07-23 13:34:08.115723",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -43,25 +43,25 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Grampanchayat Name",
-   "reqd": 1
+   "reqd": 1,
+   "unique": 1
   },
   {
    "fieldname": "grampanchayat_code",
-   "fieldtype": "Link",
+   "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Grampanchayat Code",
-   "options": "Block",
    "reqd": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-07-30 11:52:27.101274",
+ "modified": "2025-09-05 12:22:04.985074",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Grampanchayat",
- "naming_rule": "Autoincrement",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {
