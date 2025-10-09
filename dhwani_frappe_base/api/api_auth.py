@@ -35,7 +35,7 @@ def _ensure_api_credentials(user: Any) -> None:
 		user.api_key = secrets.token_urlsafe(16)
 		user.api_secret = secrets.token_urlsafe(32)
 		user.save(ignore_permissions=True)
-		frappe.db.commit()  # nosemgrep: Manual commit required to persist API credentials for immediate use in mobile authentication
+		frappe.db.commit()  # nosemgrep: Manual commit required to persist API credentials
 
 
 def _generate_auth_token(user: Any) -> str:
