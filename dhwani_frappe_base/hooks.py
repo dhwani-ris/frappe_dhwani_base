@@ -237,3 +237,14 @@ before_request = ["dhwani_frappe_base.api.jwt_auth.token_auth_middleware"]
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
+
+# Fixtures
+# ---------
+fixtures = [
+	{
+		"doctype": "Role",
+		"filters": {
+			"name": ["in", ["Mobile User"]]
+		}
+	}
+]
