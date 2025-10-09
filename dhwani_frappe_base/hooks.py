@@ -171,7 +171,7 @@ app_license = "mit"
 #
 override_whitelisted_methods = {
 	"mobile_login": "dhwani_frappe_base.api.api_auth.login",
-	"mobile_logout": "dhwani_frappe_base.api.api_auth.logout"
+	"mobile_logout": "dhwani_frappe_base.api.api_auth.logout",
 }
 #
 # each overriding function accepts a `data` argument;
@@ -240,11 +240,4 @@ before_request = ["dhwani_frappe_base.api.jwt_auth.token_auth_middleware"]
 
 # Fixtures
 # ---------
-fixtures = [
-	{
-		"doctype": "Role",
-		"filters": {
-			"name": ["in", ["Mobile User"]]
-		}
-	}
-]
+fixtures = [{"doctype": "Role", "filters": {"name": ["in", ["Mobile User"]]}}]
