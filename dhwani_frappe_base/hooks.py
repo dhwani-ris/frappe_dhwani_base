@@ -169,9 +169,10 @@ app_license = "mit"
 # Overriding Methods
 # ------------------------------
 #
-# override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "dhwani_frappe_base.event.get_events"
-# }
+override_whitelisted_methods = {
+	"mobile_login": "dhwani_frappe_base.api.api_auth.login",
+	"mobile_logout": "dhwani_frappe_base.api.api_auth.logout",
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
@@ -191,7 +192,7 @@ app_license = "mit"
 
 # Request Events
 # ----------------
-# before_request = ["dhwani_frappe_base.utils.before_request"]
+before_request = ["dhwani_frappe_base.api.jwt_auth.token_auth_middleware"]
 # after_request = ["dhwani_frappe_base.utils.after_request"]
 
 # Job Events
@@ -236,3 +237,7 @@ app_license = "mit"
 # default_log_clearing_doctypes = {
 # 	"Logging DocType Name": 30  # days to retain logs
 # }
+
+# Fixtures
+# ---------
+fixtures = [{"doctype": "Role", "filters": {"name": ["in", ["Mobile User"]]}}]
