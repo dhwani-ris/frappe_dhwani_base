@@ -1,6 +1,7 @@
 # dhwani_frappe_base/api/api_auth.py
 
 import secrets
+from typing import Any
 
 import frappe
 from frappe import _
@@ -13,34 +14,45 @@ MOBILE_USER_ROLES = ["Mobile User"]
 get_mobile_login_ratelimit = 5
 
 
+def _authenticate_user(username: str | None, password: str | None) -> Any:
+	"""Authenticate user using Frappe's login manager"""
+	login_manager = LoginManager()
+	login_manager.authenticate(username, password)
+	login_manager.post_login()
+	return frappe.get_doc("User", frappe.session.user)
+
+
+def _validate_mobile_user_role() -> None:
+	"""Validate if user has mobile user role"""
+	roles = frappe.get_roles()
+	if not set(MOBILE_USER_ROLES).intersection(roles):
+		raise frappe.PermissionError(_("User is not allowed to use mobile app"))
+
+
+def _ensure_api_credentials(user: Any) -> None:
+	"""Generate API credentials if not exists"""
+	if not user.api_key or not user.get_password("api_secret"):
+		user.api_key = secrets.token_urlsafe(16)
+		user.api_secret = secrets.token_urlsafe(32)
+		user.save(ignore_permissions=True)
+		frappe.db.commit()
+
+
+def _generate_auth_token(user: Any) -> str:
+	"""Generate encrypted authentication token"""
+	api_secret = user.get_password("api_secret")
+	return encode_api_credentials(user.api_key, api_secret)
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=get_mobile_login_ratelimit, seconds=60 * 60)
-def login(username=None, password=None):
+def login(username: str | None = None, password: str | None = None) -> dict[str, str]:
 	"""Mobile app login handler"""
 	try:
-		# Use Frappe's login manager for authentication
-		login_manager = LoginManager()
-		login_manager.authenticate(username, password)
-		login_manager.post_login()
-
-		# Get user details using Frappe's session
-		user = frappe.get_doc("User", frappe.session.user)
-
-		# Check role using Frappe's permission system
-		roles = frappe.get_roles()
-		if not set(MOBILE_USER_ROLES).intersection(roles):
-			raise frappe.PermissionError("User is not allowed to use mobile app")
-
-		# Generate API keys if not exists
-		if not user.api_key or not user.get_password("api_secret"):
-			user.api_key = secrets.token_urlsafe(16)
-			user.api_secret = secrets.token_urlsafe(32)
-			user.save(ignore_permissions=True)
-			frappe.db.commit()
-
-		# Get API secret and generate token
-		api_secret = user.get_password("api_secret")
-		token = encode_api_credentials(user.api_key, api_secret)
+		user = _authenticate_user(username, password)
+		_validate_mobile_user_role()
+		_ensure_api_credentials(user)
+		token = _generate_auth_token(user)
 
 		return {"message": _("Logged In"), "user": user.name, "full_name": user.full_name, "token": token}
 
@@ -54,7 +66,7 @@ def login(username=None, password=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def logout():
+def logout() -> dict[str, str]:
 	"""Mobile app logout handler"""
 	try:
 		# Reset API credentials before logout
