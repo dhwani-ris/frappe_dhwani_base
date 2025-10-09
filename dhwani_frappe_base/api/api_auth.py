@@ -35,7 +35,7 @@ def _ensure_api_credentials(user: Any) -> None:
 		user.api_key = secrets.token_urlsafe(16)
 		user.api_secret = secrets.token_urlsafe(32)
 		user.save(ignore_permissions=True)
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: Manual commit required to persist API credentials for immediate use in mobile authentication
 
 
 def _generate_auth_token(user: Any) -> str:
@@ -74,7 +74,7 @@ def logout() -> dict[str, str]:
 		user.api_key = None
 		user.api_secret = None
 		user.save(ignore_permissions=True)
-		frappe.db.commit()
+		frappe.db.commit()  # nosemgrep: Manual commit required to immediately invalidate API credentials on logout
 
 		return {"message": _("Logged out successfully")}
 	except Exception as e:
