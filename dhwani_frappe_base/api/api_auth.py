@@ -150,7 +150,6 @@ def _generate_user_token(login_manager: LoginManager) -> tuple[Any, str]:
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(key="tmp_id", limit=get_mobile_otp_ratelimit, seconds=60 * 10)
 def verify_mobile_otp(tmp_id: str, otp: str) -> dict[str, str]:
-	"""Verify mobile OTP and authenticate user"""
 	try:
 		if not tmp_id or not otp:
 			frappe.throw(_("OTP and temporary ID are required"), frappe.ValidationError)
