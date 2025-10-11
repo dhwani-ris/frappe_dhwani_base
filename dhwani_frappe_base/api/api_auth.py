@@ -27,6 +27,9 @@ def _authenticate_user(username: str | None, password: str | None) -> Any:
 def _validate_mobile_user_role() -> None:
 	"""Validate if user has mobile user role"""
 	roles = frappe.get_roles()
+	print("roles", roles)
+	print("MOBILE_USER_ROLES", MOBILE_USER_ROLES)
+	print("set(MOBILE_USER_ROLES).intersection(roles)", set(MOBILE_USER_ROLES).intersection(roles))
 	if not set(MOBILE_USER_ROLES).intersection(roles):
 		raise frappe.PermissionError(_("User is not allowed to use mobile app"))
 
@@ -37,7 +40,6 @@ def _ensure_api_credentials(user: Any) -> None:
 		user.api_key = secrets.token_urlsafe(16)
 		user.api_secret = secrets.token_urlsafe(32)
 		user.save(ignore_permissions=True)
-		frappe.db.commit()  # nosemgrep: Manual commit required to persist API credentials
 
 
 def _generate_auth_token(user: Any) -> str:
@@ -56,6 +58,8 @@ def login(username: str | None = None, password: str | None = None) -> dict[str,
 		_ensure_api_credentials(user)
 		token = _generate_auth_token(user)
 
+		frappe.local.login_manager.logout()
+
 		return {"message": _("Logged In"), "user": user.name, "full_name": user.full_name, "token": token}
 
 	except frappe.AuthenticationError:
@@ -71,13 +75,10 @@ def login(username: str | None = None, password: str | None = None) -> dict[str,
 def logout() -> dict[str, str]:
 	"""Mobile app logout handler"""
 	try:
-		# Reset API credentials before logout
 		user = frappe.get_doc("User", frappe.session.user)
 		user.api_key = None
 		user.api_secret = None
 		user.save(ignore_permissions=True)
-		frappe.db.commit()  # nosemgrep: Manual commit required to immediately invalidate API credentials on logout
-
 		return {"message": _("Logged out successfully")}
 	except Exception as e:
 		frappe.log_error(f"Mobile Logout Error: {e}")
@@ -144,17 +145,17 @@ def verify_mobile_otp(tmp_id: str, otp: str) -> dict[str, str]:
 		if not tmp_id or not otp:
 			frappe.throw(_("OTP and temporary ID are required"), frappe.ValidationError)
 
-		# Use Frappe's built-in mobile OTP authentication
 		login_manager = LoginManager()
 		login_manager._authenticate_mobile_otp(otp, tmp_id)
+		login_manager.post_login()
 
-		# Validate mobile user role
 		_validate_mobile_user_role()
 
-		# Generate API credentials and token
 		user_doc = frappe.get_doc("User", login_manager.user)
 		_ensure_api_credentials(user_doc)
 		token = _generate_auth_token(user_doc)
+
+		login_manager.logout()
 
 		return {
 			"message": _("Logged In"),
