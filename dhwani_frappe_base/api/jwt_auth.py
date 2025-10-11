@@ -27,13 +27,13 @@ def _encrypt_payload(payload: dict[str, any]) -> str:
 	return encrypted_payload.decode()
 
 
-def encode_api_credentials(api_key: str, api_secret: str, expires_in: int = 86400) -> str:
+def encode_api_credentials(api_key: str, api_secret: str, expires_in: int = 2592000) -> str:
 	"""
 	Encrypt API credentials using Fernet encryption.
 	Args:
 	    api_key (str): The API key
 	    api_secret (str): The API secret
-	    expires_in (int): Token expiration time in seconds (default: 24 hours)
+	    expires_in (int): Token expiration time in seconds (default: 30 days)
 	Returns:
 	    str: Encrypted token
 	"""
