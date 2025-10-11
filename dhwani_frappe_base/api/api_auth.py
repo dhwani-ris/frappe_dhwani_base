@@ -8,6 +8,7 @@ from frappe import _
 from frappe.auth import LoginManager, get_login_attempt_tracker
 from frappe.rate_limiter import rate_limit
 from frappe.utils import validate_phone_number
+from frappe.utils.mobile_otp import find_user_by_mobile, is_mobile_otp_login_enabled, send_mobile_login_otp
 
 from .jwt_auth import encode_api_credentials
 
@@ -27,9 +28,6 @@ def _authenticate_user(username: str | None, password: str | None) -> Any:
 def _validate_mobile_user_role() -> None:
 	"""Validate if user has mobile user role"""
 	roles = frappe.get_roles()
-	print("roles", roles)
-	print("MOBILE_USER_ROLES", MOBILE_USER_ROLES)
-	print("set(MOBILE_USER_ROLES).intersection(roles)", set(MOBILE_USER_ROLES).intersection(roles))
 	if not set(MOBILE_USER_ROLES).intersection(roles):
 		raise frappe.PermissionError(_("User is not allowed to use mobile app"))
 
@@ -87,8 +85,6 @@ def logout() -> dict[str, str]:
 
 def _validate_mobile_otp_prerequisites() -> None:
 	"""Validate mobile OTP prerequisites"""
-	from frappe.utils.mobile_otp import is_mobile_otp_login_enabled
-
 	if not is_mobile_otp_login_enabled():
 		frappe.throw(_("Mobile OTP login is not enabled"), frappe.AuthenticationError)
 
@@ -99,12 +95,21 @@ def _validate_mobile_otp_prerequisites() -> None:
 
 def _find_user_by_mobile(mobile_no: str) -> dict[str, str]:
 	"""Find user by mobile number"""
-	from frappe.utils.mobile_otp import find_user_by_mobile
-
 	if not mobile_no:
 		frappe.throw(_("Mobile number is required"), frappe.ValidationError)
 
 	return find_user_by_mobile(mobile_no)
+
+
+def _send_otp_to_user(user_data: dict, mobile_no: str) -> dict[str, str]:
+	"""Send OTP to user and return result"""
+	result = send_mobile_login_otp(user_data.name, mobile_no)
+	return {
+		"message": _("OTP sent successfully"),
+		"tmp_id": result.get("tmp_id"),
+		"mobile_no": result.get("mobile_no"),
+		"prompt": _("Enter verification code sent to {0}").format(result.get("mobile_no", "******")),
+	}
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -114,19 +119,8 @@ def send_mobile_otp(mobile_no: str) -> dict[str, str]:
 	try:
 		_validate_mobile_otp_prerequisites()
 		validate_phone_number(mobile_no, throw=True)
-
 		user_data = _find_user_by_mobile(mobile_no)
-
-		from frappe.utils.mobile_otp import send_mobile_login_otp
-
-		result = send_mobile_login_otp(user_data.name, mobile_no)
-
-		return {
-			"message": _("OTP sent successfully"),
-			"tmp_id": result.get("tmp_id"),
-			"mobile_no": result.get("mobile_no"),
-			"prompt": _("Enter verification code sent to {0}").format(result.get("mobile_no", "******")),
-		}
+		return _send_otp_to_user(user_data, mobile_no)
 
 	except frappe.AuthenticationError:
 		frappe.throw(_("Authentication failed"))
@@ -137,6 +131,22 @@ def send_mobile_otp(mobile_no: str) -> dict[str, str]:
 		frappe.throw(_("Failed to send OTP. Please try again."))
 
 
+def _authenticate_with_otp(otp: str, tmp_id: str) -> LoginManager:
+	"""Authenticate user with OTP and return login manager"""
+	login_manager = LoginManager()
+	login_manager._authenticate_mobile_otp(otp, tmp_id)
+	login_manager.post_login()
+	return login_manager
+
+
+def _generate_user_token(login_manager: LoginManager) -> tuple[Any, str]:
+	"""Generate API credentials and token for authenticated user"""
+	user_doc = frappe.get_doc("User", login_manager.user)
+	_ensure_api_credentials(user_doc)
+	token = _generate_auth_token(user_doc)
+	return user_doc, token
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(key="tmp_id", limit=get_mobile_otp_ratelimit, seconds=60 * 10)
 def verify_mobile_otp(tmp_id: str, otp: str) -> dict[str, str]:
@@ -145,16 +155,9 @@ def verify_mobile_otp(tmp_id: str, otp: str) -> dict[str, str]:
 		if not tmp_id or not otp:
 			frappe.throw(_("OTP and temporary ID are required"), frappe.ValidationError)
 
-		login_manager = LoginManager()
-		login_manager._authenticate_mobile_otp(otp, tmp_id)
-		login_manager.post_login()
-
+		login_manager = _authenticate_with_otp(otp, tmp_id)
 		_validate_mobile_user_role()
-
-		user_doc = frappe.get_doc("User", login_manager.user)
-		_ensure_api_credentials(user_doc)
-		token = _generate_auth_token(user_doc)
-
+		user_doc, token = _generate_user_token(login_manager)
 		login_manager.logout()
 
 		return {
