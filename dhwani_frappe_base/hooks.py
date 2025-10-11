@@ -172,6 +172,8 @@ app_license = "mit"
 override_whitelisted_methods = {
 	"mobile_login": "dhwani_frappe_base.api.api_auth.login",
 	"mobile_logout": "dhwani_frappe_base.api.api_auth.logout",
+	"send_mobile_otp": "dhwani_frappe_base.api.api_auth.send_mobile_otp",
+	"verify_mobile_otp": "dhwani_frappe_base.api.api_auth.verify_mobile_otp",
 }
 #
 # each overriding function accepts a `data` argument;

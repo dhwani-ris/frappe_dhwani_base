@@ -5,13 +5,15 @@ from typing import Any
 
 import frappe
 from frappe import _
-from frappe.auth import LoginManager
+from frappe.auth import LoginManager, get_login_attempt_tracker
 from frappe.rate_limiter import rate_limit
+from frappe.utils import validate_phone_number
 
 from .jwt_auth import encode_api_credentials
 
 MOBILE_USER_ROLES = ["Mobile User"]
 get_mobile_login_ratelimit = 5
+get_mobile_otp_ratelimit = 5
 
 
 def _authenticate_user(username: str | None, password: str | None) -> Any:
@@ -80,3 +82,91 @@ def logout() -> dict[str, str]:
 	except Exception as e:
 		frappe.log_error(f"Mobile Logout Error: {e}")
 		frappe.throw(_("Unable to logout"))
+
+
+def _validate_mobile_otp_prerequisites() -> None:
+	"""Validate mobile OTP prerequisites"""
+	from frappe.utils.mobile_otp import is_mobile_otp_login_enabled
+
+	if not is_mobile_otp_login_enabled():
+		frappe.throw(_("Mobile OTP login is not enabled"), frappe.AuthenticationError)
+
+	sms_gateway_url = frappe.get_cached_value("SMS Settings", "SMS Settings", "sms_gateway_url")
+	if not sms_gateway_url:
+		frappe.throw(_("SMS Settings are not configured"), frappe.AuthenticationError)
+
+
+def _find_user_by_mobile(mobile_no: str) -> dict[str, str]:
+	"""Find user by mobile number"""
+	from frappe.utils.mobile_otp import find_user_by_mobile
+
+	if not mobile_no:
+		frappe.throw(_("Mobile number is required"), frappe.ValidationError)
+
+	return find_user_by_mobile(mobile_no)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(key="mobile_no", limit=get_mobile_otp_ratelimit, seconds=60 * 10)
+def send_mobile_otp(mobile_no: str) -> dict[str, str]:
+	"""Send mobile OTP for authentication"""
+	try:
+		_validate_mobile_otp_prerequisites()
+		validate_phone_number(mobile_no, throw=True)
+
+		user_data = _find_user_by_mobile(mobile_no)
+
+		from frappe.utils.mobile_otp import send_mobile_login_otp
+
+		result = send_mobile_login_otp(user_data.name, mobile_no)
+
+		return {
+			"message": _("OTP sent successfully"),
+			"tmp_id": result.get("tmp_id"),
+			"mobile_no": result.get("mobile_no"),
+			"prompt": _("Enter verification code sent to {0}").format(result.get("mobile_no", "******")),
+		}
+
+	except frappe.AuthenticationError:
+		frappe.throw(_("Authentication failed"))
+	except frappe.ValidationError:
+		frappe.throw(_("Invalid mobile number"))
+	except Exception as e:
+		frappe.log_error(f"Mobile OTP Send Error: {e}")
+		frappe.throw(_("Failed to send OTP. Please try again."))
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(key="tmp_id", limit=get_mobile_otp_ratelimit, seconds=60 * 10)
+def verify_mobile_otp(tmp_id: str, otp: str) -> dict[str, str]:
+	"""Verify mobile OTP and authenticate user"""
+	try:
+		if not tmp_id or not otp:
+			frappe.throw(_("OTP and temporary ID are required"), frappe.ValidationError)
+
+		# Use Frappe's built-in mobile OTP authentication
+		login_manager = LoginManager()
+		login_manager._authenticate_mobile_otp(otp, tmp_id)
+
+		# Validate mobile user role
+		_validate_mobile_user_role()
+
+		# Generate API credentials and token
+		user_doc = frappe.get_doc("User", login_manager.user)
+		_ensure_api_credentials(user_doc)
+		token = _generate_auth_token(user_doc)
+
+		return {
+			"message": _("Logged In"),
+			"user": user_doc.name,
+			"full_name": user_doc.full_name,
+			"token": token,
+		}
+
+	except frappe.AuthenticationError:
+		frappe.throw(_("Invalid OTP or session expired"))
+	except frappe.ValidationError:
+		frappe.throw(_("Invalid request parameters"))
+	except Exception as e:
+		frappe.log_error(f"Mobile OTP Verify Error: {e}")
+		frappe.throw(_("Failed to verify OTP. Please try again."))
