@@ -17,6 +17,7 @@ Complete hierarchical geographic data structure for Indian administrative divisi
 Secure mobile app authentication with JWT-based token system:
 
 - **Encrypted Token Authentication**: Fernet encryption for secure API credentials
+- **Mobile OTP Authentication**: SMS-based OTP verification for passwordless login
 - **Role-based Access Control**: Mobile User role validation
 - **Rate Limiting**: Configurable login attempt limits (5 attempts per hour)
 - **Token Expiration**: Automatic token expiry management
@@ -27,6 +28,8 @@ RESTful API endpoints for mobile applications:
 
 - `mobile_login`: Secure login with encrypted token generation
 - `mobile_logout`: Logout with credential reset
+- `send_mobile_otp`: Send OTP to mobile number for authentication
+- `verify_mobile_otp`: Verify OTP and authenticate user
 
 ## 📋 DocTypes
 
@@ -71,7 +74,16 @@ bench install-app dhwani_frappe_base
 ```
 
 ### Post-Installation Setup
-1. **Create Mobile User Role**:
+1. **Enable Mobile OTP Login** (in System Settings):
+   - Set `allow_login_using_mobile_number` = 1
+   - Set `allow_mobile_login_with_otp` = 1
+
+2. **Configure SMS Settings**:
+   - Go to SMS Settings doctype
+   - Configure SMS gateway URL and credentials
+   - Test SMS delivery
+
+3. **Create Mobile User Role**:
    ```python
    # In Frappe console or via API
    frappe.get_doc({
@@ -81,7 +93,7 @@ bench install-app dhwani_frappe_base
    }).insert()
    ```
 
-2. **Assign Role to Users**:
+4. **Assign Role to Users**:
    ```python
    # Add Mobile User role to existing users
    user = frappe.get_doc("User", "user@example.com")
@@ -125,6 +137,47 @@ Authorization: Bearer encrypted_token_string
 }
 ```
 
+### Send Mobile OTP Endpoint
+```bash
+POST /api/method/send_mobile_otp
+Content-Type: application/json
+
+{
+    "mobile_no": "+1234567890"
+}
+```
+
+**Response**:
+```json
+{
+    "message": "OTP sent successfully",
+    "tmp_id": "abc123def",
+    "mobile_no": "******7890",
+    "prompt": "Enter verification code sent to ******7890"
+}
+```
+
+### Verify Mobile OTP Endpoint
+```bash
+POST /api/method/verify_mobile_otp
+Content-Type: application/json
+
+{
+    "tmp_id": "abc123def",
+    "otp": "123456"
+}
+```
+
+**Response**:
+```json
+{
+    "message": "Logged In",
+    "user": "user@example.com",
+    "full_name": "John Doe",
+    "token": "encrypted_token_string"
+}
+```
+
 ### Using Encrypted Tokens
 ```bash
 GET /api/resource/State
@@ -154,9 +207,11 @@ State (1) → District (N) → Block (N) → Grampanchayat (N) → Village (N)
 
 ### Access Control
 - Mobile User role required for API access
-- Rate limiting prevents abuse
+- Rate limiting prevents abuse (5 attempts per 10 minutes for OTP)
 - Comprehensive audit logging
 - Secure credential management
+- OTP session expiry (5 minutes default)
+- Login attempt tracking for security monitoring
 
 
 ## 📝 License
@@ -171,6 +226,28 @@ For support and questions:
 
 ---
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Last Updated**: January 2025  
 **Compatibility**: Frappe Framework v15+
+
+## 🔄 Mobile OTP Authentication Flow
+
+### Step-by-Step Process
+
+1. **Send OTP**: User requests OTP by providing mobile number
+2. **Validate Mobile**: System validates mobile number and finds user
+3. **Generate OTP**: System generates TOTP token and caches it
+4. **Send SMS**: OTP is sent via configured SMS gateway
+5. **Verify OTP**: User submits OTP with temporary ID
+6. **Authenticate**: System verifies OTP and creates authenticated session
+7. **Generate Token**: API credentials and encrypted token are generated
+8. **Access APIs**: User can now access protected endpoints with token
+
+### Security Features
+
+- **Rate Limiting**: 5 attempts per mobile number per 10 minutes
+- **Session Expiry**: OTP sessions expire after 5 minutes
+- **Token Cleanup**: Cached OTP data is deleted after successful verification
+- **Login Tracking**: All attempts are logged for security monitoring
+- **Mobile Validation**: Phone number format validation
+- **User Verification**: Only enabled users with mobile numbers can receive OTP
