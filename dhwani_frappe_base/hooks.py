@@ -174,6 +174,7 @@ override_whitelisted_methods = {
 	"mobile_logout": "dhwani_frappe_base.api.api_auth.logout",
 	"send_mobile_otp": "dhwani_frappe_base.api.api_auth.send_mobile_otp",
 	"verify_mobile_otp": "dhwani_frappe_base.api.api_auth.verify_mobile_otp",
+	"get_doctype_metadata": "dhwani_frappe_base.mform_middleware.api.doctype_metadata.get_doctype_metadata",
 }
 #
 # each overriding function accepts a `data` argument;
