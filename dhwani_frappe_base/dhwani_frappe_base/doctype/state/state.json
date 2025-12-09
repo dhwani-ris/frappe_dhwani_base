@@ -29,8 +29,7 @@
    "fieldname": "state_census_code",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "State Census Code",
-   "reqd": 1
+   "label": "State Census Code"
   },
   {
    "fieldname": "column_break_krkj",
@@ -48,7 +47,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-08-09 12:37:04.924988",
+ "modified": "2025-12-09 11:58:52.751105",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "State",
