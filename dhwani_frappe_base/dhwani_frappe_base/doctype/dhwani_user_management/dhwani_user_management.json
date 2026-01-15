@@ -1,0 +1,339 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:",
+ "creation": "2026-01-09 17:02:45.269712",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "basic_information_section",
+  "full_name",
+  "username",
+  "column_break_yevr",
+  "email",
+  "column_break_bdrs",
+  "mobile_no",
+  "column_break_ftlx",
+  "gender",
+  "role_profile_assignment_section",
+  "role_profile_html",
+  "role_profiles",
+  "program_access_section",
+  "table_fkmn",
+  "ivr_agent_details_section",
+  "ivr_username",
+  "follow_me_alternate_number",
+  "column_break_rhav",
+  "ivr_password",
+  "telecaller_referral_code",
+  "column_break_xszk",
+  "ivr_agent_code",
+  "service_id",
+  "column_break_vfcq",
+  "follow_me_number",
+  "consultant_details_section",
+  "category",
+  "ifsc_code",
+  "column_break_ztuh",
+  "referral",
+  "aadhaar_number",
+  "column_break_adee",
+  "account_holder_name",
+  "pan_number",
+  "column_break_vsli",
+  "account_number",
+  "mobiliser_details_section",
+  "mobiliser_referral_code",
+  "column_break_ewrp",
+  "column_break_lene",
+  "column_break_zwiw",
+  "settings_tab",
+  "change_password_section",
+  "new_password"
+ ],
+ "fields": [
+  {
+   "fieldname": "basic_information_section",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Full Name",
+   "read_only_depends_on": "eval:!doc.__islocal",
+   "reqd": 1
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "read_only_depends_on": "eval:!doc.__islocal",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Link",
+   "label": "Gender",
+   "options": "Gender",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_yevr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_bdrs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_ftlx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "role_profile_assignment_section",
+   "fieldtype": "Section Break",
+   "label": "Role Profile Assignment"
+  },
+  {
+   "default": "<H1>dfdf</h1>",
+   "fieldname": "role_profile_html",
+   "fieldtype": "HTML"
+  },
+  {
+   "fieldname": "role_profiles",
+   "fieldtype": "Table MultiSelect",
+   "hidden": 1,
+   "label": "Role Profiles",
+   "options": "User Role Profile"
+  },
+  {
+   "fieldname": "program_access_section",
+   "fieldtype": "Section Break",
+   "label": "Program Access"
+  },
+  {
+   "fieldname": "table_fkmn",
+   "fieldtype": "Table",
+   "options": "Program Access"
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))",
+   "fieldname": "ivr_agent_details_section",
+   "fieldtype": "Section Break",
+   "label": "IVR Agent Details"
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))",
+   "fieldname": "ivr_username",
+   "fieldtype": "Data",
+   "label": "IVR Username",
+   "mandatory_depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))"
+  },
+  {
+   "fieldname": "column_break_rhav",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))",
+   "fieldname": "ivr_password",
+   "fieldtype": "Password",
+   "label": "IVR Password",
+   "mandatory_depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))"
+  },
+  {
+   "default": "+91-",
+   "fieldname": "follow_me_number",
+   "fieldtype": "Phone",
+   "label": "Follow Me Number"
+  },
+  {
+   "fieldname": "column_break_xszk",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))",
+   "fieldname": "ivr_agent_code",
+   "fieldtype": "Data",
+   "label": "IVR Agent Code",
+   "mandatory_depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))"
+  },
+  {
+   "default": "+91-",
+   "fieldname": "follow_me_alternate_number",
+   "fieldtype": "Phone",
+   "label": "Follow Me Alternate Number"
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))",
+   "fieldname": "service_id",
+   "fieldtype": "Link",
+   "label": "Service ID",
+   "options": "IVR Service ID"
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))",
+   "fieldname": "telecaller_referral_code",
+   "fieldtype": "Data",
+   "label": "Telecaller Referral Code",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && r.role_profile.toLowerCase().includes('consultant')) || (r.user_role_profile && r.user_role_profile.toLowerCase().includes('consultant')))",
+   "fieldname": "consultant_details_section",
+   "fieldtype": "Section Break",
+   "label": "Consultant Details"
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && r.role_profile.toLowerCase().includes('consultant')) || (r.user_role_profile && r.user_role_profile.toLowerCase().includes('consultant')))",
+   "fieldname": "category",
+   "fieldtype": "Link",
+   "label": "Category",
+   "options": "Consultant Type"
+  },
+  {
+   "fieldname": "column_break_ztuh",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && r.role_profile.toLowerCase().includes('consultant')) || (r.user_role_profile && r.user_role_profile.toLowerCase().includes('consultant')))",
+   "fieldname": "referral",
+   "fieldtype": "Data",
+   "label": "Referral"
+  },
+  {
+   "fieldname": "column_break_vfcq",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_adee",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && r.role_profile.toLowerCase().includes('consultant')) || (r.user_role_profile && r.user_role_profile.toLowerCase().includes('consultant')))",
+   "fieldname": "account_holder_name",
+   "fieldtype": "Data",
+   "label": "Account Holder Name"
+  },
+  {
+   "fieldname": "column_break_vsli",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && r.role_profile.toLowerCase().includes('consultant')) || (r.user_role_profile && r.user_role_profile.toLowerCase().includes('consultant')))",
+   "fieldname": "account_number",
+   "fieldtype": "Int",
+   "label": "Account Number",
+   "non_negative": 1
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && r.role_profile.toLowerCase().includes('consultant')) || (r.user_role_profile && r.user_role_profile.toLowerCase().includes('consultant')))",
+   "fieldname": "ifsc_code",
+   "fieldtype": "Data",
+   "label": "IFSC Code"
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && r.role_profile.toLowerCase().includes('consultant')) || (r.user_role_profile && r.user_role_profile.toLowerCase().includes('consultant')))",
+   "fieldname": "pan_number",
+   "fieldtype": "Data",
+   "label": "PAN Number"
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && r.role_profile.toLowerCase().includes('consultant')) || (r.user_role_profile && r.user_role_profile.toLowerCase().includes('consultant')))",
+   "fieldname": "aadhaar_number",
+   "fieldtype": "Data",
+   "label": "Aadhaar Number",
+   "length": 12
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('mobiliser') || r.role_profile.toLowerCase().includes('mobilizer'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('mobiliser') || r.user_role_profile.toLowerCase().includes('mobilizer'))))",
+   "fieldname": "mobiliser_details_section",
+   "fieldtype": "Section Break",
+   "label": "Mobiliser Details "
+  },
+  {
+   "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('mobiliser') || r.role_profile.toLowerCase().includes('mobilizer'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('mobiliser') || r.user_role_profile.toLowerCase().includes('mobilizer'))))",
+   "fieldname": "mobiliser_referral_code",
+   "fieldtype": "Data",
+   "label": "Mobiliser Referral Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_ewrp",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_lene",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "column_break_zwiw",
+   "fieldtype": "Column Break"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "change_password_section",
+   "fieldtype": "Section Break",
+   "label": "Change Password"
+  },
+  {
+   "fieldname": "new_password",
+   "fieldtype": "Password",
+   "label": "Set New Password"
+  },
+  {
+   "fieldname": "settings_tab",
+   "fieldtype": "Tab Break",
+   "label": "Settings"
+  },
+  {
+   "fieldname": "username",
+   "fieldtype": "Data",
+   "label": "Username",
+   "read_only": 1
+  },
+  {
+   "default": "+91-",
+   "fieldname": "mobile_no",
+   "fieldtype": "Phone",
+   "label": "Mobile Number",
+   "read_only_depends_on": "eval:!doc.__islocal",
+   "reqd": 1
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-01-15 14:29:50.493172",
+ "modified_by": "Administrator",
+ "module": "Dhwani Frappe Base",
+ "name": "Dhwani User Management",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "full_name"
+}

@@ -132,13 +132,12 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+	"User": {
+		"on_update": "dhwani_frappe_base.dhwani_frappe_base.doctype.dhwani_user_management.dhwani_user_management.sync_user_to_dhwani_user_management",
+		"after_insert": "dhwani_frappe_base.dhwani_frappe_base.doctype.dhwani_user_management.dhwani_user_management.sync_user_to_dhwani_user_management"
+	}
+}
 
 # Scheduled Tasks
 # ---------------
