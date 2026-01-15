@@ -124,13 +124,13 @@
    "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))",
    "fieldname": "ivr_agent_details_section",
    "fieldtype": "Section Break",
-   "label": "IVR Agent Details"
+   "label": "Ivr Agent Details"
   },
   {
    "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))",
    "fieldname": "ivr_username",
    "fieldtype": "Data",
-   "label": "IVR Username",
+   "label": "Ivr Username",
    "mandatory_depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))"
   },
   {
@@ -141,13 +141,13 @@
    "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))",
    "fieldname": "ivr_password",
    "fieldtype": "Password",
-   "label": "IVR Password",
+   "label": "Ivr Password",
    "mandatory_depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))"
   },
   {
    "default": "+91-",
    "fieldname": "follow_me_number",
-   "fieldtype": "Phone",
+   "fieldtype": "Data",
    "label": "Follow Me Number"
   },
   {
@@ -158,20 +158,20 @@
    "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))",
    "fieldname": "ivr_agent_code",
    "fieldtype": "Data",
-   "label": "IVR Agent Code",
+   "label": "Ivr Agent Code",
    "mandatory_depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))"
   },
   {
    "default": "+91-",
    "fieldname": "follow_me_alternate_number",
-   "fieldtype": "Phone",
+   "fieldtype": "Data",
    "label": "Follow Me Alternate Number"
   },
   {
    "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))",
    "fieldname": "service_id",
    "fieldtype": "Link",
-   "label": "Service ID",
+   "label": "Service Id",
    "options": "IVR Service ID"
   },
   {
@@ -234,13 +234,13 @@
    "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && r.role_profile.toLowerCase().includes('consultant')) || (r.user_role_profile && r.user_role_profile.toLowerCase().includes('consultant')))",
    "fieldname": "ifsc_code",
    "fieldtype": "Data",
-   "label": "IFSC Code"
+   "label": "Ifsc Code"
   },
   {
    "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && r.role_profile.toLowerCase().includes('consultant')) || (r.user_role_profile && r.user_role_profile.toLowerCase().includes('consultant')))",
    "fieldname": "pan_number",
    "fieldtype": "Data",
-   "label": "PAN Number"
+   "label": "Pan Number"
   },
   {
    "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && r.role_profile.toLowerCase().includes('consultant')) || (r.user_role_profile && r.user_role_profile.toLowerCase().includes('consultant')))",
@@ -309,7 +309,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-15 14:29:50.493172",
+ "modified": "2026-01-15 16:34:49.787382",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Dhwani User Management",
