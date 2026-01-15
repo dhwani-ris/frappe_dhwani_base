@@ -4,6 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.utils.password import update_password
 
 SYNC_FLAG_USER_TO_DHWANI = 'syncing_user_to_dhwani'
 
@@ -93,11 +94,15 @@ class DhwaniUserManagement(Document):
 		
 		program_access_table = self._get_program_access_table()
 		if program_access_table:
+			program_access_meta = frappe.get_meta("Program Access")
+			link_fields = [f.fieldname for f in program_access_meta.fields if f.fieldtype == "Link"]
+			
 			for row in program_access_table:
-				if row.program:
-					self.create_user_permission(user, "TMF Program", row.program)
-				if row.project:
-					self.create_user_permission(user, "TMF Project", row.project)
+				for fieldname in link_fields:
+					value = getattr(row, fieldname, None)
+					if value:
+						doctype = program_access_meta.get_field(fieldname).options
+						self.create_user_permission(user, doctype, value)
 		
 		self.sync_to_user_doctype(user)
 	
@@ -143,8 +148,7 @@ class DhwaniUserManagement(Document):
 			
 			return self.email
 		except Exception as e:
-			frappe.log_error(f"Error creating user: {str(e)}")
-			return None
+			frappe.throw(_("Error creating user: {0}").format(e))
 	
 	def delete_existing_user_permissions(self, user):
 		"""Delete all existing User Permission records for the given user"""
@@ -179,7 +183,7 @@ class DhwaniUserManagement(Document):
 			})
 			user_permission.insert(ignore_permissions=True, ignore_links=True)
 		except Exception as e:
-			frappe.log_error(f"Error creating User Permission: {str(e)}")
+			frappe.throw(_("Error creating User Permission: {0}").format(e))
 	
 	def _get_roles_from_role_profile(self, role_profile_value):
 		"""Get all Role names directly from Role Profile value"""
@@ -197,7 +201,7 @@ class DhwaniUserManagement(Document):
 			elif frappe.db.exists("Role", role_profile_value):
 				roles.append(role_profile_value)
 		except Exception as e:
-			frappe.log_error(f"Error getting roles from Role Profile {role_profile_value}: {str(e)}")
+			frappe.throw(_("Error getting roles from Role Profile {0}: {1}").format(role_profile_value, e))
 		
 		return roles
 	
@@ -212,54 +216,69 @@ class DhwaniUserManagement(Document):
 			has_changes = False
 			
 			dhwani_meta = frappe.get_meta("Dhwani User Management")
-			user_meta = frappe.get_meta("User")
 			
-			for field in dhwani_meta.fields:
-				if field.fieldtype in ['Data', 'Small Text', 'Text', 'Int', 'Float', 'Date', 'Datetime', 'Link', 'Select', 'Phone']:
-					fieldname = field.fieldname
-					if fieldname in ['name', 'owner', 'creation', 'modified', 'modified_by', 'idx']:
-						continue
-					
-					if hasattr(self, fieldname) and hasattr(user_doc, fieldname):
-						dhwani_value = getattr(self, fieldname, None)
-						user_value = getattr(user_doc, fieldname, None)
-						
-					if dhwani_value != user_value:
-						setattr(user_doc, fieldname, dhwani_value)
-						has_changes = True
-			
-			if hasattr(user_doc, 'role_profiles'):
-				current_role_profiles = [getattr(r, 'role_profile', None) for r in user_doc.role_profiles if getattr(r, 'role_profile', None)]
-				dhwani_role_profiles = []
-				role_profiles_table = self._get_role_profiles_table()
-				if role_profiles_table:
-					for role_row in role_profiles_table:
-						role_profile_value = getattr(role_row, 'role_profile', None) or \
-						                     getattr(role_row, 'user_role_profile', None)
-						if role_profile_value:
-							dhwani_role_profiles.append(role_profile_value)
-				
-				if set(current_role_profiles) != set(dhwani_role_profiles):
-					user_doc.role_profiles = []
-					for role_profile_value in dhwani_role_profiles:
-						user_doc.append("role_profiles", {
-							"role_profile": role_profile_value
-						})
-					has_changes = True
-			
-			roles_list = self._get_all_roles()
-			if roles_list:
-				current_roles = [r.role for r in user_doc.roles if r.role]
-				roles_to_add = [r for r in roles_list if r not in current_roles]
-				if roles_to_add:
-					user_doc.add_roles(*roles_to_add)
-					has_changes = True
+			has_changes = self._sync_common_fields(user_doc, dhwani_meta) or has_changes
+			has_changes = self._sync_role_profiles(user_doc) or has_changes
+			has_changes = self._sync_roles(user_doc) or has_changes
 			
 			if has_changes:
 				user_doc.flags.ignore_validate = True
 				user_doc.save(ignore_permissions=True)
 		except Exception as e:
-			frappe.log_error(f"Error syncing to User doctype: {str(e)}")
+			frappe.throw(_("Error syncing to User doctype: {0}").format(e))
+	
+	def _sync_common_fields(self, user_doc, dhwani_meta):
+		"""Sync common fields from Dhwani User Management to User doctype"""
+		has_changes = False
+		for field in dhwani_meta.fields:
+			if field.fieldtype in ['Data', 'Small Text', 'Text', 'Int', 'Float', 'Date', 'Datetime', 'Link', 'Select', 'Phone']:
+				fieldname = field.fieldname
+				if fieldname in ['name', 'owner', 'creation', 'modified', 'modified_by', 'idx']:
+					continue
+				
+				if hasattr(self, fieldname) and hasattr(user_doc, fieldname):
+					dhwani_value = getattr(self, fieldname, None)
+					user_value = getattr(user_doc, fieldname, None)
+					
+					if dhwani_value != user_value:
+						setattr(user_doc, fieldname, dhwani_value)
+						has_changes = True
+		return has_changes
+	
+	def _sync_role_profiles(self, user_doc):
+		"""Sync role profiles from Dhwani User Management to User doctype"""
+		has_changes = False
+		if hasattr(user_doc, 'role_profiles'):
+			current_role_profiles = [getattr(r, 'role_profile', None) for r in user_doc.role_profiles if getattr(r, 'role_profile', None)]
+			dhwani_role_profiles = []
+			role_profiles_table = self._get_role_profiles_table()
+			if role_profiles_table:
+				for role_row in role_profiles_table:
+					role_profile_value = getattr(role_row, 'role_profile', None) or \
+					                     getattr(role_row, 'user_role_profile', None)
+					if role_profile_value:
+						dhwani_role_profiles.append(role_profile_value)
+			
+			if set(current_role_profiles) != set(dhwani_role_profiles):
+				user_doc.role_profiles = []
+				for role_profile_value in dhwani_role_profiles:
+					user_doc.append("role_profiles", {
+						"role_profile": role_profile_value
+					})
+				has_changes = True
+		return has_changes
+	
+	def _sync_roles(self, user_doc):
+		"""Sync roles from Dhwani User Management to User doctype"""
+		has_changes = False
+		roles_list = self._get_all_roles()
+		if roles_list:
+			current_roles = [r.role for r in user_doc.roles if r.role]
+			roles_to_add = [r for r in roles_list if r not in current_roles]
+			if roles_to_add:
+				user_doc.add_roles(*roles_to_add)
+				has_changes = True
+		return has_changes
 	
 	def update_user_password(self):
 		"""Update User password when new_password is set"""
@@ -277,7 +296,6 @@ class DhwaniUserManagement(Document):
 			if not frappe.db.exists("User", self.email):
 				frappe.throw(_("User {0} does not exist").format(self.email))
 			
-			from frappe.utils.password import update_password
 			update_password(self.email, password_value, doctype="User", fieldname="password", logout_all_sessions=False)
 			
 			frappe.db.set_value("Dhwani User Management", self.name, "new_password", None)
@@ -298,7 +316,7 @@ class DhwaniUserManagement(Document):
 		try:
 			self.delete_existing_user_permissions(self.email)
 		except Exception as e:
-			frappe.log_error(f"Error deleting User Permissions: {str(e)}")
+			frappe.throw(_("Error deleting User Permissions: {0}").format(e))
 	
 	def delete_user_record(self):
 		"""Delete User record"""
@@ -309,7 +327,7 @@ class DhwaniUserManagement(Document):
 			if frappe.db.exists("User", self.email) and self.email not in ["Administrator", "Guest"]:
 				frappe.delete_doc("User", self.email, ignore_permissions=True, force=True)
 		except Exception as e:
-			frappe.log_error(f"Error deleting User record: {str(e)}")
+			frappe.throw(_("Error deleting User record: {0}").format(e))
 	
 	def _validate_program_access_duplicates(self, program_access_table):
 		"""Validate that there are no duplicate projects or programs in Program Access table"""
@@ -350,7 +368,7 @@ def sync_user_to_dhwani_user_management(doc, method):
 			dhwani_doc.flags.ignore_validate = True
 			dhwani_doc.save(ignore_permissions=True)
 	except Exception as e:
-		frappe.log_error(f"Error syncing User to Dhwani User Management: {str(e)}")
+		frappe.throw(_("Error syncing User to Dhwani User Management: {0}").format(e))
 	finally:
 		if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
 			delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
