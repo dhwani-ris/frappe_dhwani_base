@@ -135,7 +135,7 @@ app_license = "mit"
 doc_events = {
 	"User": {
 		"on_update": "dhwani_frappe_base.dhwani_frappe_base.doctype.dhwani_user_management.dhwani_user_management.sync_user_to_dhwani_user_management",
-		"after_insert": "dhwani_frappe_base.dhwani_frappe_base.doctype.dhwani_user_management.dhwani_user_management.sync_user_to_dhwani_user_management"
+		"after_insert": "dhwani_frappe_base.dhwani_frappe_base.doctype.dhwani_user_management.dhwani_user_management.sync_user_to_dhwani_user_management",
 	}
 }
 
