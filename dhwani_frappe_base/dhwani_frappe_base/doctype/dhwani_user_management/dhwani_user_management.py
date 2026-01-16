@@ -114,45 +114,14 @@ class DhwaniUserManagement(Document):
 		if frappe.db.exists("User", self.email):
 			return self.email
 		
-		# Set flag to prevent User->Dhwani sync during user creation
 		setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
 		try:
-			user_doc = frappe.get_doc({
-				"doctype": "User",
-				"email": self.email,
-				"first_name": self.full_name or self.email.split("@")[0],
-				"full_name": self.full_name or self.email.split("@")[0],
-				"enabled": 1,
-				"send_welcome_email": 1
-			})
-			user_doc.flags.ignore_validate = True
-			user_doc.insert(ignore_permissions=True)
-			
-			user_doc = frappe.get_doc("User", self.email)
-			
-			role_profiles_table = self._get_role_profiles_table()
-			if role_profiles_table and hasattr(user_doc, 'role_profiles'):
-				user_doc.role_profiles = []
-				for role_row in role_profiles_table:
-					role_profile_value = getattr(role_row, 'role_profile', None) or \
-					                     getattr(role_row, 'user_role_profile', None)
-					if role_profile_value:
-						user_doc.append("role_profiles", {
-							"role_profile": role_profile_value
-						})
-			
-			roles_list = self._get_all_roles()
-			if roles_list:
-				user_doc.add_roles(*roles_list)
-			
+			user_doc = self._create_user_document()
+			self._apply_role_profiles_to_user(user_doc)
+			self._apply_roles_to_user(user_doc)
 			user_doc.flags.ignore_validate = True
 			user_doc.save(ignore_permissions=True)
-			
-			# Fetch username after User creation and update Dhwani User Management
-			username = frappe.db.get_value("User", self.email, "username")
-			if username:
-				self.db_set('username', username, update_modified=False)
-			
+			self._sync_username_from_user()
 			return self.email
 		except Exception as e:
 			frappe.throw(_("Error creating user: {0}").format(e))
@@ -162,6 +131,45 @@ class DhwaniUserManagement(Document):
 					delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
 			except (KeyError, AttributeError):
 				pass
+	
+	def _create_user_document(self):
+		"""Create new User document"""
+		user_doc = frappe.get_doc({
+			"doctype": "User",
+			"email": self.email,
+			"first_name": self.full_name or self.email.split("@")[0],
+			"full_name": self.full_name or self.email.split("@")[0],
+			"enabled": 1,
+			"send_welcome_email": 1
+		})
+		user_doc.flags.ignore_validate = True
+		user_doc.insert(ignore_permissions=True)
+		return frappe.get_doc("User", self.email)
+	
+	def _apply_role_profiles_to_user(self, user_doc):
+		"""Apply role profiles from Dhwani User Management to User"""
+		role_profiles_table = self._get_role_profiles_table()
+		if role_profiles_table and hasattr(user_doc, 'role_profiles'):
+			user_doc.role_profiles = []
+			for role_row in role_profiles_table:
+				role_profile_value = getattr(role_row, 'role_profile', None) or \
+				                     getattr(role_row, 'user_role_profile', None)
+				if role_profile_value:
+					user_doc.append("role_profiles", {
+						"role_profile": role_profile_value
+					})
+	
+	def _apply_roles_to_user(self, user_doc):
+		"""Apply roles from Dhwani User Management to User"""
+		roles_list = self._get_all_roles()
+		if roles_list:
+			user_doc.add_roles(*roles_list)
+	
+	def _sync_username_from_user(self):
+		"""Sync username from User to Dhwani User Management"""
+		username = frappe.db.get_value("User", self.email, "username")
+		if username:
+			self.db_set('username', username, update_modified=False)
 	
 	def delete_existing_user_permissions(self, user):
 		"""Delete all existing User Permission records for the given user"""
