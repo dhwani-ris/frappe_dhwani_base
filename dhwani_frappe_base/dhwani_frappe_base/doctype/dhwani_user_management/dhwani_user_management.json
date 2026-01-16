@@ -299,11 +299,11 @@
    "read_only": 1
   },
   {
-   "default": "+91-",
    "fieldname": "mobile_no",
-   "fieldtype": "Phone",
+   "fieldtype": "Data",
    "label": "Mobile Number",
-   "read_only_depends_on": "eval:!doc.__islocal"
+   "read_only_depends_on": "eval:!doc.__islocal",
+   "unique": 1
   },
   {
    "fieldname": "birth_date",
@@ -327,7 +327,7 @@
  "image_field": "cover_image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-16 15:03:14.072632",
+ "modified": "2026-01-16 19:47:28.058223",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Dhwani User Management",
