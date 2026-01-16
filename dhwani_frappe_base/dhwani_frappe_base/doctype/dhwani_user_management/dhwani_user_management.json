@@ -72,6 +72,7 @@
    "fieldname": "email",
    "fieldtype": "Data",
    "label": "Email",
+   "options": "Email",
    "read_only_depends_on": "eval:!doc.__islocal",
    "reqd": 1,
    "unique": 1
@@ -147,7 +148,6 @@
    "mandatory_depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))"
   },
   {
-   "default": "+91-",
    "fieldname": "follow_me_number",
    "fieldtype": "Data",
    "label": "Follow Me Number"
@@ -164,7 +164,6 @@
    "mandatory_depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))"
   },
   {
-   "default": "+91-",
    "fieldname": "follow_me_alternate_number",
    "fieldtype": "Data",
    "label": "Follow Me Alternate Number"
@@ -328,7 +327,7 @@
  "image_field": "cover_image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-16 12:39:35.544195",
+ "modified": "2026-01-16 15:03:14.072632",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Dhwani User Management",
