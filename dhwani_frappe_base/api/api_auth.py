@@ -5,9 +5,13 @@ from typing import Any
 
 import frappe
 from frappe import _
-from frappe.auth import LoginManager, get_login_attempt_tracker
+from frappe.auth import LoginManager
+from frappe.auth import get_login_attempt_tracker
 from frappe.rate_limiter import rate_limit
 from frappe.utils import validate_phone_number
+from frappe.utils.mobile_otp import find_user_by_mobile
+from frappe.utils.mobile_otp import is_mobile_otp_login_enabled
+from frappe.utils.mobile_otp import send_mobile_login_otp
 
 from .jwt_auth import encode_api_credentials
 
@@ -121,8 +125,6 @@ def logout() -> dict[str, str]:
 
 def _validate_mobile_otp_prerequisites() -> None:
 	"""Validate mobile OTP prerequisites"""
-	from frappe.utils.mobile_otp import is_mobile_otp_login_enabled
-
 	if not is_mobile_otp_login_enabled():
 		frappe.throw(_("Mobile OTP login is not enabled"), frappe.AuthenticationError)
 
@@ -133,8 +135,6 @@ def _validate_mobile_otp_prerequisites() -> None:
 
 def _find_user_by_mobile(mobile_no: str) -> dict[str, str]:
 	"""Find user by mobile number"""
-	from frappe.utils.mobile_otp import find_user_by_mobile
-
 	if not mobile_no:
 		frappe.throw(_("Mobile number is required"), frappe.ValidationError)
 
@@ -143,8 +143,6 @@ def _find_user_by_mobile(mobile_no: str) -> dict[str, str]:
 
 def _send_otp_to_user(user_data: dict, mobile_no: str) -> dict[str, str]:
 	"""Send OTP to user and return result"""
-	from frappe.utils.mobile_otp import send_mobile_login_otp
-
 	result = send_mobile_login_otp(user_data.name, mobile_no)
 	return {
 		"message": _("OTP sent successfully"),
