@@ -9,12 +9,12 @@
   "enabled",
   "basic_information_section",
   "full_name",
-  "birth_date",
+  "mobile_no",
   "column_break_yevr",
   "email",
   "username",
   "column_break_bdrs",
-  "mobile_no",
+  "birth_date",
   "cover_image",
   "column_break_ftlx",
   "gender",
@@ -80,8 +80,7 @@
    "fieldname": "gender",
    "fieldtype": "Link",
    "label": "Gender",
-   "options": "Gender",
-   "reqd": 1
+   "options": "Gender"
   },
   {
    "fieldname": "column_break_yevr",
@@ -305,8 +304,7 @@
    "fieldname": "mobile_no",
    "fieldtype": "Phone",
    "label": "Mobile Number",
-   "read_only_depends_on": "eval:!doc.__islocal",
-   "reqd": 1
+   "read_only_depends_on": "eval:!doc.__islocal"
   },
   {
    "fieldname": "birth_date",
@@ -330,7 +328,7 @@
  "image_field": "cover_image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-15 19:04:45.478488",
+ "modified": "2026-01-16 12:39:35.544195",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Dhwani User Management",
