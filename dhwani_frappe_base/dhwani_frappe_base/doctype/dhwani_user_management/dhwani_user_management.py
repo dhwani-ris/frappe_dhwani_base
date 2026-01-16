@@ -114,6 +114,8 @@ class DhwaniUserManagement(Document):
 		if frappe.db.exists("User", self.email):
 			return self.email
 		
+		# Set flag to prevent User->Dhwani sync during user creation
+		setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
 		try:
 			user_doc = frappe.get_doc({
 				"doctype": "User",
@@ -121,7 +123,7 @@ class DhwaniUserManagement(Document):
 				"first_name": self.full_name or self.email.split("@")[0],
 				"full_name": self.full_name or self.email.split("@")[0],
 				"enabled": 1,
-				"send_welcome_email": 0
+				"send_welcome_email": 1
 			})
 			user_doc.flags.ignore_validate = True
 			user_doc.insert(ignore_permissions=True)
@@ -146,9 +148,20 @@ class DhwaniUserManagement(Document):
 			user_doc.flags.ignore_validate = True
 			user_doc.save(ignore_permissions=True)
 			
+			# Fetch username after User creation and update Dhwani User Management
+			username = frappe.db.get_value("User", self.email, "username")
+			if username:
+				self.db_set('username', username, update_modified=False)
+			
 			return self.email
 		except Exception as e:
 			frappe.throw(_("Error creating user: {0}").format(e))
+		finally:
+			try:
+				if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
+					delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
+			except (KeyError, AttributeError):
+				pass
 	
 	def delete_existing_user_permissions(self, user):
 		"""Delete all existing User Permission records for the given user"""
@@ -210,7 +223,14 @@ class DhwaniUserManagement(Document):
 		if not user_email or not frappe.db.exists("User", user_email):
 			return
 		
+		# Use a flag to prevent concurrent syncs
+		sync_flag = f'syncing_user_{user_email}'
+		if hasattr(frappe.flags, sync_flag) and getattr(frappe.flags, sync_flag, False):
+			return
+		
 		try:
+			setattr(frappe.flags, sync_flag, True)
+			
 			user_doc = frappe.get_doc("User", user_email)
 			user_doc.reload()
 			has_changes = False
@@ -222,25 +242,51 @@ class DhwaniUserManagement(Document):
 			has_changes = self._sync_roles(user_doc) or has_changes
 			
 			if has_changes:
-				user_doc.flags.ignore_validate = True
-				user_doc.save(ignore_permissions=True)
+				user_doc.reload()
+				self._sync_common_fields(user_doc, dhwani_meta)
+				self._sync_role_profiles(user_doc)
+				self._sync_roles(user_doc)
+				
+				# Set flag to prevent User->Dhwani sync loop
+				setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
+				try:
+					user_doc.flags.ignore_validate = True
+					user_doc.save(ignore_permissions=True)
+				finally:
+					if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
+						delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
 		except Exception as e:
-			frappe.throw(_("Error syncing to User doctype: {0}").format(e))
+			error_msg = str(e)
+			if "has been modified" in error_msg:
+				# Version conflict - will sync on next save, not critical
+				pass
+			else:
+				frappe.throw(_("Error syncing to User doctype: {0}").format(e))
+		finally:
+			try:
+				if hasattr(frappe.flags, sync_flag):
+					delattr(frappe.flags, sync_flag)
+			except (KeyError, AttributeError):
+				pass
 	
 	def _sync_common_fields(self, user_doc, dhwani_meta):
 		"""Sync common fields from Dhwani User Management to User doctype"""
 		has_changes = False
 		for field in dhwani_meta.fields:
-			if field.fieldtype in ['Data', 'Small Text', 'Text', 'Int', 'Float', 'Date', 'Datetime', 'Link', 'Select', 'Phone']:
+			if field.fieldtype in ['Data', 'Small Text', 'Text', 'Int', 'Float', 'Date', 'Datetime', 'Link', 'Select', 'Phone', 'Check', 'Attach Image', 'Image']:
 				fieldname = field.fieldname
-				if fieldname in ['name', 'owner', 'creation', 'modified', 'modified_by', 'idx']:
+				if fieldname in ['name', 'owner', 'creation', 'modified', 'modified_by', 'idx', 'cover_image']:
 					continue
 				
 				if hasattr(self, fieldname) and hasattr(user_doc, fieldname):
 					dhwani_value = getattr(self, fieldname, None)
 					user_value = getattr(user_doc, fieldname, None)
 					
-					if dhwani_value != user_value:
+					# Normalize None and empty string values for comparison
+					dhwani_normalized = dhwani_value if dhwani_value not in [None, ''] else None
+					user_normalized = user_value if user_value not in [None, ''] else None
+					
+					if dhwani_normalized != user_normalized:
 						setattr(user_doc, fieldname, dhwani_value)
 						has_changes = True
 		return has_changes
@@ -356,7 +402,8 @@ def sync_user_to_dhwani_user_management(doc, method):
 	if not doc.email:
 		return
 	
-	if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI) and getattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, False):
+	# Check if sync is already in progress to prevent loops
+	if getattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, False):
 		return
 	
 	try:
@@ -370,8 +417,11 @@ def sync_user_to_dhwani_user_management(doc, method):
 	except Exception as e:
 		frappe.throw(_("Error syncing User to Dhwani User Management: {0}").format(e))
 	finally:
-		if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
-			delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
+		try:
+			if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
+				delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
+		except (KeyError, AttributeError):
+			pass
 
 
 def _get_or_create_dhwani_doc(user_doc):
