@@ -227,7 +227,7 @@
   {
    "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && r.role_profile.toLowerCase().includes('consultant')) || (r.user_role_profile && r.user_role_profile.toLowerCase().includes('consultant')))",
    "fieldname": "account_number",
-   "fieldtype": "Int",
+   "fieldtype": "Data",
    "label": "Account Number",
    "non_negative": 1
   },
@@ -295,8 +295,11 @@
   {
    "fieldname": "username",
    "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_standard_filter": 1,
    "label": "Username",
-   "read_only": 1
+   "read_only": 1,
+   "unique": 1
   },
   {
    "fieldname": "mobile_no",
@@ -327,7 +330,7 @@
  "image_field": "cover_image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-16 19:47:28.058223",
+ "modified": "2026-01-19 00:48:55.692715",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Dhwani User Management",

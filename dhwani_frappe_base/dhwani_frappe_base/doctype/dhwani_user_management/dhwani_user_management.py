@@ -230,6 +230,10 @@ class DhwaniUserManagement(Document):
 		if not user_email or not frappe.db.exists("User", user_email):
 			return
 
+		# Check if sync is already in progress to prevent loops
+		if getattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, False):
+			return
+
 		# Use a flag to prevent concurrent syncs
 		sync_flag = f"syncing_user_{user_email}"
 		if hasattr(frappe.flags, sync_flag) and getattr(frappe.flags, sync_flag, False):
