@@ -229,35 +229,27 @@ class UserManager(Document):
 		"""Sync all fields automatically to User doctype"""
 		if not user_email or not frappe.db.exists("User", user_email):
 			return
-
 		# Check if sync is already in progress to prevent loops
 		if getattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, False):
 			return
-
 		# Use a flag to prevent concurrent syncs
 		sync_flag = f"syncing_user_{user_email}"
 		if hasattr(frappe.flags, sync_flag) and getattr(frappe.flags, sync_flag, False):
 			return
-
 		try:
 			setattr(frappe.flags, sync_flag, True)
-
 			user_doc = frappe.get_doc("User", user_email)
 			user_doc.reload()
 			has_changes = False
-
 			dhwani_meta = frappe.get_meta("User Manager")
-
 			has_changes = self._sync_common_fields(user_doc, dhwani_meta) or has_changes
 			has_changes = self._sync_role_profiles(user_doc) or has_changes
 			has_changes = self._sync_roles(user_doc) or has_changes
-
 			if has_changes:
 				user_doc.reload()
 				self._sync_common_fields(user_doc, dhwani_meta)
 				self._sync_role_profiles(user_doc)
 				self._sync_roles(user_doc)
-
 				# Set flag to prevent User->Dhwani sync loop
 				setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
 				try:
