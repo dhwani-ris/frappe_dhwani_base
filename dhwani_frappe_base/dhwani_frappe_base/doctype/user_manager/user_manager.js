@@ -1,7 +1,7 @@
 // Copyright (c) 2026, Dhwani RIS and contributors
 // For license information, please see license.txt
 
-frappe.ui.form.on("Dhwani User Management", {
+frappe.ui.form.on("User Manager", {
 	refresh(frm) {
 		load_role_profiles(frm);
 		if (frm.doc.email) {
@@ -33,7 +33,7 @@ function fetch_username_from_user(frm) {
 	}
 
 	frappe.call({
-		method: "dhwani_frappe_base.dhwani_frappe_base.doctype.dhwani_user_management.dhwani_user_management.get_username_from_user",
+		method: "dhwani_frappe_base.dhwani_frappe_base.doctype.user_manager.user_manager.get_username_from_user",
 		args: {
 			email: frm.doc.email,
 		},
