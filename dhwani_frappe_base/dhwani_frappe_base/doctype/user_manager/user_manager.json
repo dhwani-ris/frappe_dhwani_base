@@ -333,7 +333,7 @@
  "modified": "2026-01-19 00:48:55.692715",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
- "name": "Dhwani User Management",
+ "name": "User Manager",
  "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
