@@ -9,6 +9,7 @@ from frappe.auth import LoginManager
 from frappe.auth import get_login_attempt_tracker
 from frappe.rate_limiter import rate_limit
 from frappe.utils import validate_phone_number
+from .jwt_auth import encode_api_credentials
 
 try:
 	from frappe.utils.mobile_otp import find_user_by_mobile
@@ -18,8 +19,6 @@ except ImportError:
 	find_user_by_mobile = None
 	is_mobile_otp_login_enabled = None
 	send_mobile_login_otp = None
-
-from .jwt_auth import encode_api_credentials
 
 MOBILE_USER_ROLES = ["Mobile User"]
 get_mobile_login_ratelimit = 5
