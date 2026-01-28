@@ -9,7 +9,7 @@ from frappe.utils.password import update_password
 SYNC_FLAG_USER_TO_DHWANI = "syncing_user_to_dhwani"
 
 
-class DhwaniUserManagement(Document):
+class UserManager(Document):
 	def _get_table_field_name(self, child_doctype):
 		"""Get the field name in this doctype that contains the specified child table"""
 		try:
@@ -72,7 +72,7 @@ class DhwaniUserManagement(Document):
 				self.flags.new_password_value = new_password
 
 	def on_trash(self):
-		"""Delete related records when Dhwani User Management is deleted"""
+		"""Delete related records when User Manager is deleted"""
 		if not self.email:
 			return
 
@@ -150,7 +150,7 @@ class DhwaniUserManagement(Document):
 		return frappe.get_doc("User", self.email)
 
 	def _apply_role_profiles_to_user(self, user_doc):
-		"""Apply role profiles from Dhwani User Management to User"""
+		"""Apply role profiles from User Manager to User"""
 		role_profiles_table = self._get_role_profiles_table()
 		if role_profiles_table and hasattr(user_doc, "role_profiles"):
 			user_doc.role_profiles = []
@@ -162,13 +162,13 @@ class DhwaniUserManagement(Document):
 					user_doc.append("role_profiles", {"role_profile": role_profile_value})
 
 	def _apply_roles_to_user(self, user_doc):
-		"""Apply roles from Dhwani User Management to User"""
+		"""Apply roles from User Manager to User"""
 		roles_list = self._get_all_roles()
 		if roles_list:
 			user_doc.add_roles(*roles_list)
 
 	def _sync_username_from_user(self):
-		"""Sync username from User to Dhwani User Management"""
+		"""Sync username from User to User Manager"""
 		username = frappe.db.get_value("User", self.email, "username")
 		if username:
 			self.db_set("username", username, update_modified=False)
@@ -229,35 +229,27 @@ class DhwaniUserManagement(Document):
 		"""Sync all fields automatically to User doctype"""
 		if not user_email or not frappe.db.exists("User", user_email):
 			return
-
 		# Check if sync is already in progress to prevent loops
 		if getattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, False):
 			return
-
 		# Use a flag to prevent concurrent syncs
 		sync_flag = f"syncing_user_{user_email}"
 		if hasattr(frappe.flags, sync_flag) and getattr(frappe.flags, sync_flag, False):
 			return
-
 		try:
 			setattr(frappe.flags, sync_flag, True)
-
 			user_doc = frappe.get_doc("User", user_email)
 			user_doc.reload()
 			has_changes = False
-
-			dhwani_meta = frappe.get_meta("Dhwani User Management")
-
+			dhwani_meta = frappe.get_meta("User Manager")
 			has_changes = self._sync_common_fields(user_doc, dhwani_meta) or has_changes
 			has_changes = self._sync_role_profiles(user_doc) or has_changes
 			has_changes = self._sync_roles(user_doc) or has_changes
-
 			if has_changes:
 				user_doc.reload()
 				self._sync_common_fields(user_doc, dhwani_meta)
 				self._sync_role_profiles(user_doc)
 				self._sync_roles(user_doc)
-
 				# Set flag to prevent User->Dhwani sync loop
 				setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
 				try:
@@ -281,7 +273,7 @@ class DhwaniUserManagement(Document):
 				pass
 
 	def _sync_common_fields(self, user_doc, dhwani_meta):
-		"""Sync common fields from Dhwani User Management to User doctype"""
+		"""Sync common fields from User Manager to User doctype"""
 		has_changes = False
 		for field in dhwani_meta.fields:
 			if field.fieldtype in [
@@ -325,7 +317,7 @@ class DhwaniUserManagement(Document):
 		return has_changes
 
 	def _sync_role_profiles(self, user_doc):
-		"""Sync role profiles from Dhwani User Management to User doctype"""
+		"""Sync role profiles from User Manager to User doctype"""
 		has_changes = False
 		if hasattr(user_doc, "role_profiles"):
 			current_role_profiles = [
@@ -351,7 +343,7 @@ class DhwaniUserManagement(Document):
 		return has_changes
 
 	def _sync_roles(self, user_doc):
-		"""Sync roles from Dhwani User Management to User doctype"""
+		"""Sync roles from User Manager to User doctype"""
 		has_changes = False
 		roles_list = self._get_all_roles()
 		if roles_list:
@@ -382,7 +374,7 @@ class DhwaniUserManagement(Document):
 				self.email, password_value, doctype="User", fieldname="password", logout_all_sessions=False
 			)
 
-			frappe.db.set_value("Dhwani User Management", self.name, "new_password", None)
+			frappe.db.set_value("User Manager", self.name, "new_password", None)
 
 			frappe.msgprint(
 				_("Password updated successfully for user {0}").format(self.email),
@@ -436,8 +428,8 @@ class DhwaniUserManagement(Document):
 		return list(set(roles))
 
 
-def sync_user_to_dhwani_user_management(doc, method):
-	"""Sync User doctype changes to Dhwani User Management"""
+def sync_user_to_user_manager(doc, method):
+	"""Sync User doctype changes to User Manager"""
 	if not doc.email:
 		return
 
@@ -454,7 +446,7 @@ def sync_user_to_dhwani_user_management(doc, method):
 			dhwani_doc.flags.ignore_validate = True
 			dhwani_doc.save(ignore_permissions=True)
 	except Exception as e:
-		frappe.throw(_("Error syncing User to Dhwani User Management: {0}").format(e))
+		frappe.throw(_("Error syncing User to User Manager: {0}").format(e))
 	finally:
 		try:
 			if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
@@ -464,15 +456,15 @@ def sync_user_to_dhwani_user_management(doc, method):
 
 
 def _get_or_create_dhwani_doc(user_doc):
-	"""Get or create Dhwani User Management document"""
-	dhwani_user = frappe.db.get_value("Dhwani User Management", {"email": user_doc.email}, "name")
+	"""Get or create User Manager document"""
+	dhwani_user = frappe.db.get_value("User Manager", {"email": user_doc.email}, "name")
 
 	if dhwani_user:
-		return frappe.get_doc("Dhwani User Management", dhwani_user), False
+		return frappe.get_doc("User Manager", dhwani_user), False
 
 	return frappe.get_doc(
 		{
-			"doctype": "Dhwani User Management",
+			"doctype": "User Manager",
 			"email": user_doc.email,
 			"full_name": user_doc.full_name or user_doc.first_name or user_doc.email.split("@")[0],
 			"mobile_no": getattr(user_doc, "mobile_no", None) or "",
@@ -486,7 +478,7 @@ def _sync_fields_from_user(user_doc, dhwani_doc):
 	has_changes = False
 
 	user_meta = frappe.get_meta("User")
-	dhwani_meta = frappe.get_meta("Dhwani User Management")
+	dhwani_meta = frappe.get_meta("User Manager")
 
 	user_fieldnames = {f.fieldname for f in user_meta.fields}
 	dhwani_fieldnames = {f.fieldname for f in dhwani_meta.fields}
