@@ -1,5 +1,7 @@
 # dhwani_frappe_base/api/api_auth.py
 
+import importlib
+import importlib.util
 import secrets
 from typing import Any
 
@@ -9,16 +11,14 @@ from frappe.auth import LoginManager
 from frappe.auth import get_login_attempt_tracker
 from frappe.rate_limiter import rate_limit
 from frappe.utils import validate_phone_number
+
 from .jwt_auth import encode_api_credentials
 
-try:
-	from frappe.utils.mobile_otp import find_user_by_mobile
-	from frappe.utils.mobile_otp import is_mobile_otp_login_enabled
-	from frappe.utils.mobile_otp import send_mobile_login_otp
-except ImportError:
-	find_user_by_mobile = None
-	is_mobile_otp_login_enabled = None
-	send_mobile_login_otp = None
+_mobile_otp_spec = importlib.util.find_spec("frappe.utils.mobile_otp")
+_mobile_otp = (_mobile_otp_spec and importlib.import_module(_mobile_otp_spec.name)) or None
+find_user_by_mobile = getattr(_mobile_otp, "find_user_by_mobile", None)
+is_mobile_otp_login_enabled = getattr(_mobile_otp, "is_mobile_otp_login_enabled", None)
+send_mobile_login_otp = getattr(_mobile_otp, "send_mobile_login_otp", None)
 
 MOBILE_USER_ROLES = ["Mobile User"]
 get_mobile_login_ratelimit = 5
