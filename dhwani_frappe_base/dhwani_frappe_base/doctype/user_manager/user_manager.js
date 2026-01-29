@@ -3,6 +3,16 @@
 
 frappe.ui.form.on("User Manager", {
 	refresh(frm) {
+		// Force show email field even though it's used for autoname
+		if (frm.fields_dict.email) {
+			frm.set_df_property("email", "hidden", 0);
+			setTimeout(() => {
+				if (frm.fields_dict.email && frm.fields_dict.email.$wrapper) {
+					frm.fields_dict.email.$wrapper.show();
+				}
+			}, 100);
+		}
+
 		load_role_profiles(frm);
 		if (frm.doc.email) {
 			setTimeout(() => {
