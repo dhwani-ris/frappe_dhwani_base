@@ -12,7 +12,7 @@ frappe.ui.form.on("User Manager", {
 				}
 			}, 100);
 		}
-		
+
 		load_role_profiles(frm);
 		if (frm.doc.email) {
 			setTimeout(() => {
