@@ -161,7 +161,7 @@
   {
    "fieldname": "custom_ivr_details",
    "fieldtype": "Tab Break",
-   "label": "IVR Details"
+   "label": "Ivr Details"
   },
   {
    "depends_on": "eval:doc.role_profiles && doc.role_profiles.length > 0 && doc.role_profiles.some(r => (r.role_profile && (r.role_profile.toLowerCase().includes('telecaller') || r.role_profile.toLowerCase().includes('tele caller'))) || (r.user_role_profile && (r.user_role_profile.toLowerCase().includes('telecaller') || r.user_role_profile.toLowerCase().includes('tele caller'))))",
