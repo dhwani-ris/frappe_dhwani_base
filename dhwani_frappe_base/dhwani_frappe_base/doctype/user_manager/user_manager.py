@@ -4,6 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.model.naming import append_number_if_name_exists
 from frappe.utils.password import update_password
 
 SYNC_FLAG_USER_TO_DHWANI = "syncing_user_to_dhwani"
@@ -148,7 +149,6 @@ class UserManager(Document):
 
 		# Generate username before insert (matching Frappe's logic)
 		if not user_doc.username and user_doc.first_name:
-			from frappe.model.naming import append_number_if_name_exists
 			base_username = frappe.scrub(user_doc.first_name)
 			if base_username:
 				user_doc.username = append_number_if_name_exists("User", base_username, fieldname="username")
