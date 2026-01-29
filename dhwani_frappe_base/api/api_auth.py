@@ -21,8 +21,8 @@ is_mobile_otp_login_enabled = getattr(_mobile_otp, "is_mobile_otp_login_enabled"
 send_mobile_login_otp = getattr(_mobile_otp, "send_mobile_login_otp", None)
 
 MOBILE_USER_ROLES = ["Mobile User"]
-get_mobile_login_ratelimit = 5
-get_mobile_otp_ratelimit = 5
+get_mobile_login_ratelimit = 50
+get_mobile_otp_ratelimit = 50
 
 
 def _authenticate_user(username: str | None, password: str | None) -> Any:

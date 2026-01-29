@@ -145,9 +145,19 @@ class UserManager(Document):
 				"send_welcome_email": 1,
 			}
 		)
+
+		# Generate username before insert (matching Frappe's logic)
+		if not user_doc.username and user_doc.first_name:
+			from frappe.model.naming import append_number_if_name_exists
+			base_username = frappe.scrub(user_doc.first_name)
+			if base_username:
+				user_doc.username = append_number_if_name_exists("User", base_username, fieldname="username")
+
 		user_doc.flags.ignore_validate = True
 		user_doc.insert(ignore_permissions=True)
-		return frappe.get_doc("User", self.email)
+		user_doc.reload()
+
+		return user_doc
 
 	def _apply_role_profiles_to_user(self, user_doc):
 		"""Apply role profiles from User Manager to User"""
