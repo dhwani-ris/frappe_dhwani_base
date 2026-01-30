@@ -15,9 +15,9 @@
   "mobile_no",
   "column_break_bdrs",
   "birth_date",
-  "gender",
   "cover_image",
   "column_break_ftlx",
+  "gender",
   "role_profile_assignment_section",
   "role_profile_html",
   "role_profiles",
@@ -265,7 +265,8 @@
    "fieldname": "aadhaar_number",
    "fieldtype": "Data",
    "label": "Aadhaar Number",
-   "length": 12
+   "length": 12,
+   "unique": 1
   },
   {
    "fieldname": "column_break_adee",
@@ -336,6 +337,7 @@
    "label": "Change Password"
   },
   {
+   "depends_on": "eval:!doc.__islocal",
    "fieldname": "new_password",
    "fieldtype": "Password",
    "label": "Set New Password"
@@ -345,7 +347,7 @@
  "image_field": "cover_image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-29 11:35:16.062834",
+ "modified": "2026-01-29 17:10:12.628263",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "User Manager",
