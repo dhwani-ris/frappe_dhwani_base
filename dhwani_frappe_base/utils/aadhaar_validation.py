@@ -1,6 +1,9 @@
 # Copyright (c) 2026, Dhwani RIS and contributors
 # For license information, please see license.txt
 
+import frappe
+from frappe import _
+
 """
 Aadhaar Number Validation Utility
 
@@ -8,17 +11,12 @@ This module provides validation functions for Aadhaar numbers using the Verhoeff
 Aadhaar numbers are 12-digit unique identification numbers issued by UIDAI (India).
 
 Usage:
-    from dhwani_frappe_base.utils.aadhaar_validation import validate_aadhaar_number
-
     # With error throwing (default)
     validate_aadhaar_number("1234 5678 9012")
 
     # Without error throwing (returns boolean)
     is_valid = validate_aadhaar_number("1234 5678 9012", throw_error=False)
 """
-
-import frappe
-from frappe import _
 
 # Verhoeff algorithm lookup tables for Aadhaar validation
 _VERHOEFF_D_TABLE = [

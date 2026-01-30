@@ -6,7 +6,6 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.model.naming import append_number_if_name_exists
 from frappe.utils.password import update_password
-
 from dhwani_frappe_base.utils.aadhaar_validation import validate_aadhaar_number
 
 SYNC_FLAG_USER_TO_DHWANI = "syncing_user_to_dhwani"
