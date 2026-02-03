@@ -68,10 +68,11 @@ def validate_aadhaar_number(aadhaar_number, throw_error=True):
 	# Clean the Aadhaar number (remove spaces and hyphens)
 	aadhaar_clean = _clean_aadhaar_number(aadhaar_number)
 
-	# Validate basic format
-	if not _validate_aadhaar_format(aadhaar_clean):
+	# Validate basic format with specific error messages
+	format_error = _validate_aadhaar_format(aadhaar_clean)
+	if format_error is not True:
 		if throw_error:
-			frappe.throw(_("Aadhaar number must be exactly 12 digits"))
+			frappe.throw(_(format_error))
 		return False
 
 	# Validate using Verhoeff algorithm
@@ -104,18 +105,24 @@ def _validate_aadhaar_format(aadhaar):
 		aadhaar: Clean Aadhaar number string
 
 	Returns:
-		True if format is valid, False otherwise
+		True if format is valid, error message string otherwise
 	"""
-	if not aadhaar or not aadhaar.isdigit() or len(aadhaar) != 12:
-		return False
+	if not aadhaar:
+		return "Aadhaar number is required"
+	
+	if not aadhaar.isdigit():
+		return "Aadhaar number must contain only digits"
+	
+	if len(aadhaar) != 12:
+		return "Aadhaar number must be exactly 12 digits"
 
 	# Check for invalid patterns (all same digits like 111111111111)
 	if len(set(aadhaar)) == 1:
-		return False
+		return "Aadhaar number cannot have all same digits"
 
 	# Check for sequential patterns (123456789012, 012345678901)
 	if _is_sequential_pattern(aadhaar):
-		return False
+		return "Aadhaar number cannot be a sequential pattern"
 
 	return True
 
