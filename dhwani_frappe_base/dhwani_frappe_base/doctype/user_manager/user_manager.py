@@ -193,7 +193,7 @@ class UserManager(Document):
 			# Bulk delete all user permissions for this user
 			frappe.db.delete("User Permission", {"user": user})
 		except Exception as e:
-			frappe.log_error(f"Error deleting user permissions: {str(e)}")
+			frappe.log_error(f"Error deleting user permissions: {e!s}")
 
 	def create_user_permission(self, user, allow, for_value):
 		"""Create a User Permission record"""

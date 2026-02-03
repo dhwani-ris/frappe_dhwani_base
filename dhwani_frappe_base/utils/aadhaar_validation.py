@@ -109,10 +109,10 @@ def _validate_aadhaar_format(aadhaar):
 	"""
 	if not aadhaar:
 		return "Aadhaar number is required"
-	
+
 	if not aadhaar.isdigit():
 		return "Aadhaar number must contain only digits"
-	
+
 	if len(aadhaar) != 12:
 		return "Aadhaar number must be exactly 12 digits"
 
