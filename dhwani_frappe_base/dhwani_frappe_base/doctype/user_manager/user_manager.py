@@ -32,14 +32,15 @@ class UserManager(Document):
 
 	def _get_role_profiles_table(self):
 		"""Get the Role Profiles child table"""
-		table_field = self._get_table_field_name("User Role Profile")
-		if not table_field:
-			# Fallback: try common field names
-			for field_name in ["role_profiles", "user_role_profiles"]:
-				if hasattr(self, field_name):
-					return getattr(self, field_name)
-		elif hasattr(self, table_field):
-			return getattr(self, table_field)
+		if frappe.db.exists("DocType", "User Role Profile"):
+			table_field = self._get_table_field_name("User Role Profile")
+			if table_field and hasattr(self, table_field):
+				return getattr(self, table_field)
+
+		# Fallback: try common field names
+		for field_name in ["role_profiles", "user_role_profiles"]:
+			if hasattr(self, field_name):
+				return getattr(self, field_name)
 		return None
 
 	def validate(self):
@@ -100,15 +101,12 @@ class UserManager(Document):
 
 		program_access_table = self._get_program_access_table()
 		if program_access_table:
-			program_access_meta = frappe.get_meta("Program Access")
-			link_fields = [f.fieldname for f in program_access_meta.fields if f.fieldtype == "Link"]
-
 			for row in program_access_table:
-				for fieldname in link_fields:
-					value = getattr(row, fieldname, None)
-					if value:
-						doctype = program_access_meta.get_field(fieldname).options
-						self.create_user_permission(user, doctype, value)
+				program_value = getattr(row, "program", None)
+				project_value = getattr(row, "project", None)
+				if program_value and project_value:
+					# Dynamic Link: allow = program_value (doctype), for_value = project_value
+					self.create_user_permission(user, program_value, project_value)
 
 		self.sync_to_user_doctype(user)
 
@@ -189,9 +187,13 @@ class UserManager(Document):
 
 	def delete_existing_user_permissions(self, user):
 		"""Delete all existing User Permission records for the given user"""
-		user_permissions = frappe.get_all("User Permission", filters={"user": user}, pluck="name")
-		for up_name in user_permissions:
-			frappe.delete_doc("User Permission", up_name, ignore_permissions=True, force=True)
+		if not user:
+			return
+		try:
+			# Bulk delete all user permissions for this user
+			frappe.db.delete("User Permission", {"user": user})
+		except Exception as e:
+			frappe.log_error(f"Error deleting user permissions: {str(e)}")
 
 	def create_user_permission(self, user, allow, for_value):
 		"""Create a User Permission record"""
@@ -199,7 +201,8 @@ class UserManager(Document):
 			return
 
 		try:
-			existing = frappe.db.get_value(
+			# Check if already exists (query directly to avoid race conditions)
+			existing = frappe.db.exists(
 				"User Permission", {"user": user, "allow": allow, "for_value": for_value}
 			)
 
@@ -451,6 +454,9 @@ def sync_user_to_user_manager(doc, method):
 	if getattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, False):
 		return
 
+	if not frappe.db.exists("DocType", "User Role Profile"):
+		return
+
 	try:
 		setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
 		dhwani_doc, is_new = _get_or_create_dhwani_doc(doc)
@@ -460,6 +466,8 @@ def sync_user_to_user_manager(doc, method):
 			dhwani_doc.flags.ignore_validate = True
 			dhwani_doc.save(ignore_permissions=True)
 	except Exception as e:
+		if "User Role Profile" in str(e) or "No module named" in str(e):
+			return
 		frappe.throw(_("Error syncing User to User Manager: {0}").format(e))
 	finally:
 		try:
