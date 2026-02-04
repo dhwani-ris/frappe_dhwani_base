@@ -9,8 +9,6 @@ import frappe
 from frappe import _
 from frappe.auth import LoginManager
 from frappe.auth import get_login_attempt_tracker
-from frappe.auth import LoginManager
-from frappe.auth import get_login_attempt_tracker
 from frappe.rate_limiter import rate_limit
 from frappe.utils import validate_phone_number
 
