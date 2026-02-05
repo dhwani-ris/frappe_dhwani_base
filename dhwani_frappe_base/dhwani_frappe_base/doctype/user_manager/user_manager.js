@@ -6,18 +6,18 @@ frappe.ui.form.on("User Manager", {
 		// Force show email field even though it's used for autoname
 		if (frm.fields_dict.email) {
 			frm.set_df_property("email", "hidden", 0);
-			setTimeout(() => {
+			frappe.utils.next_tick(() => {
 				if (frm.fields_dict.email && frm.fields_dict.email.$wrapper) {
 					frm.fields_dict.email.$wrapper.show();
 				}
-			}, 100);
+			});
 		}
 
 		load_role_profiles(frm);
 		if (frm.doc.email) {
-			setTimeout(() => {
+			frappe.utils.next_tick(() => {
 				fetch_username_from_user(frm);
-			}, 100);
+			});
 		}
 	},
 
@@ -55,7 +55,6 @@ function fetch_username_from_user(frm) {
 			}
 		},
 		error: function (err) {
-			console.log("Error fetching username:", err);
 			frm.set_value("username", "");
 		},
 	});
@@ -176,7 +175,6 @@ function load_role_profiles(frm) {
 				render_checkboxes(frm, profiles, display_field);
 			})
 			.catch((err) => {
-				console.error("Error loading role profiles:", err);
 				frappe.db
 					.get_list("Role Profile", {
 						fields: ["name"],
@@ -202,9 +200,9 @@ function render_checkboxes(frm, profiles, display_field) {
 	let html = generate_checkbox_html(profiles, selected_profiles, display_field);
 	frm.set_df_property("role_profile_html", "options", html);
 
-	setTimeout(() => {
+	frappe.utils.next_tick(() => {
 		setup_checkbox_listeners(frm);
-	}, 100);
+	});
 }
 
 function generate_checkbox_html(profiles, selected_profiles, display_field) {
