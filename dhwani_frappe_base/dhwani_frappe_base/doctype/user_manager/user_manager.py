@@ -315,7 +315,6 @@ class UserManager(Document):
 					"modified",
 					"modified_by",
 					"idx",
-					"cover_image",
 				]:
 					continue
 
@@ -336,6 +335,16 @@ class UserManager(Document):
 		if hasattr(user_doc, "enabled") and user_doc.enabled != enabled_value:
 			user_doc.enabled = enabled_value
 			has_changes = True
+
+		# Sync cover_image to user_image
+		if hasattr(self, "cover_image") and hasattr(user_doc, "user_image"):
+			cover_image = getattr(self, "cover_image", None)
+			user_image = getattr(user_doc, "user_image", None)
+			cover_image_normalized = cover_image if cover_image not in [None, ""] else None
+			user_image_normalized = user_image if user_image not in [None, ""] else None
+			if cover_image_normalized != user_image_normalized:
+				user_doc.user_image = cover_image
+				has_changes = True
 
 		return has_changes
 
@@ -533,6 +542,14 @@ def _sync_fields_from_user(user_doc, dhwani_doc):
 		status_value = STATUS_ACTIVE if user_doc.enabled else STATUS_INACTIVE
 		if getattr(dhwani_doc, "status", None) != status_value:
 			dhwani_doc.status = status_value
+			has_changes = True
+
+	# Sync user_image to cover_image
+	if hasattr(user_doc, "user_image") and hasattr(dhwani_doc, "cover_image"):
+		user_image = getattr(user_doc, "user_image", None)
+		cover_image = getattr(dhwani_doc, "cover_image", None)
+		if user_image != cover_image:
+			dhwani_doc.cover_image = user_image
 			has_changes = True
 
 	return has_changes
