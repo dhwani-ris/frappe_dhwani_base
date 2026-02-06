@@ -5,8 +5,8 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.model.naming import append_number_if_name_exists
-from frappe.utils.password import update_password
 from frappe.utils import validate_phone_number
+from frappe.utils.password import update_password
 
 SYNC_FLAG_USER_TO_DHWANI = "syncing_user_to_dhwani"
 STATUS_ACTIVE = "Active"
