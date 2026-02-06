@@ -539,7 +539,7 @@ def _sync_fields_from_user(user_doc, dhwani_doc):
 
 
 @frappe.whitelist()
-def get_username_from_user(email):
+def get_username_from_user(email: str):
 	"""Get username from User doctype for given email"""
 	if not email:
 		return {"username": ""}
