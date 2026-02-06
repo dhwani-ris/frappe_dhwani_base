@@ -53,7 +53,6 @@
    "in_global_search": 1,
    "in_standard_filter": 1,
    "label": "Username",
-   "read_only": 1,
    "unique": 1
   },
   {
@@ -150,7 +149,7 @@
  "image_field": "cover_image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-01-29 17:10:12.628263",
+ "modified": "2026-02-06 12:37:48.532729",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "User Manager",
