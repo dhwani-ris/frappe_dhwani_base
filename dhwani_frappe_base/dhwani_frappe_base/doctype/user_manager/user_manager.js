@@ -11,6 +11,13 @@ frappe.ui.form.on("User Manager", {
 			}
 		}
 
+		// Force show username field and disable it
+		if (frm.fields_dict.username) {
+			if (frm.fields_dict.username.$wrapper) {
+				frm.fields_dict.username.$input.prop("disabled", true);
+			}
+		}
+
 		load_role_profiles(frm);
 		if (frm.doc.email) {
 			fetch_username_from_user(frm);
@@ -192,8 +199,13 @@ function render_checkboxes(frm, profiles, display_field) {
 	}
 
 	let html = generate_checkbox_html(profiles, selected_profiles, display_field);
-	frm.set_df_property("role_profile_html", "options", html);
-	frm.refresh_field("role_profile_html");
+	if (frm.fields_dict.role_profile_html && frm.fields_dict.role_profile_html.$wrapper) {
+		frm.fields_dict.role_profile_html.$wrapper.html(html);
+		setup_checkbox_listeners(frm);
+	} else {
+		frm.set_df_property("role_profile_html", "options", html);
+		frm.refresh_field("role_profile_html");
+	}
 }
 
 function generate_checkbox_html(profiles, selected_profiles, display_field) {
