@@ -6,9 +6,10 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.model.naming import append_number_if_name_exists
 from frappe.utils.password import update_password
-from dhwani_frappe_base.utils.aadhaar_validation import validate_aadhaar_number
 
 SYNC_FLAG_USER_TO_DHWANI = "syncing_user_to_dhwani"
+STATUS_ACTIVE = "Active"
+STATUS_INACTIVE = "Inactive"
 
 
 class UserManager(Document):
@@ -68,9 +69,6 @@ class UserManager(Document):
 
 		# Validate for duplicate projects and programs
 		self._validate_program_access_duplicates(program_access_table)
-
-		if self.aadhaar_number:
-			validate_aadhaar_number(self.aadhaar_number)
 
 		new_password = self.get("new_password")
 		if new_password:
@@ -138,13 +136,14 @@ class UserManager(Document):
 
 	def _create_user_document(self):
 		"""Create new User document"""
+		enabled = 1 if getattr(self, "status", STATUS_ACTIVE) == STATUS_ACTIVE else 0
 		user_doc = frappe.get_doc(
 			{
 				"doctype": "User",
 				"email": self.email,
 				"first_name": self.full_name or self.email.split("@")[0],
 				"full_name": self.full_name or self.email.split("@")[0],
-				"enabled": 1,
+				"enabled": enabled,
 				"send_welcome_email": 1,
 			}
 		)
@@ -324,13 +323,20 @@ class UserManager(Document):
 					dhwani_value = getattr(self, fieldname, None)
 					user_value = getattr(user_doc, fieldname, None)
 
-					# Normalize None and empty string values for comparison
 					dhwani_normalized = dhwani_value if dhwani_value not in [None, ""] else None
 					user_normalized = user_value if user_value not in [None, ""] else None
 
 					if dhwani_normalized != user_normalized:
 						setattr(user_doc, fieldname, dhwani_value)
 						has_changes = True
+
+		# Sync status field to enabled field
+		status = getattr(self, "status", STATUS_ACTIVE)
+		enabled_value = 1 if status == STATUS_ACTIVE else 0
+		if hasattr(user_doc, "enabled") and user_doc.enabled != enabled_value:
+			user_doc.enabled = enabled_value
+			has_changes = True
+
 		return has_changes
 
 	def _sync_role_profiles(self, user_doc):
@@ -521,6 +527,13 @@ def _sync_fields_from_user(user_doc, dhwani_doc):
 				elif user_value:
 					setattr(dhwani_doc, fieldname, user_value)
 				has_changes = True
+
+	# Sync enabled field to status field
+	if hasattr(user_doc, "enabled") and hasattr(dhwani_doc, "status"):
+		status_value = STATUS_ACTIVE if user_doc.enabled else STATUS_INACTIVE
+		if getattr(dhwani_doc, "status", None) != status_value:
+			dhwani_doc.status = status_value
+			has_changes = True
 
 	return has_changes
 
