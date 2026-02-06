@@ -6,6 +6,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.model.naming import append_number_if_name_exists
 from frappe.utils.password import update_password
+from frappe.utils import validate_phone_number
 
 SYNC_FLAG_USER_TO_DHWANI = "syncing_user_to_dhwani"
 STATUS_ACTIVE = "Active"
@@ -48,6 +49,9 @@ class UserManager(Document):
 		"""Core validation only"""
 		if not self.email:
 			frappe.throw(_("Email is required"))
+
+		if self.mobile_no:
+			validate_phone_number(self.mobile_no, throw=True)
 
 		role_profiles_table = self._get_role_profiles_table()
 		has_role_profile = False
