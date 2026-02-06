@@ -329,14 +329,17 @@ class UserManager(Document):
 						setattr(user_doc, fieldname, dhwani_value)
 						has_changes = True
 
-		# Sync status field to enabled field
 		status = getattr(self, "status", STATUS_ACTIVE)
 		enabled_value = 1 if status == STATUS_ACTIVE else 0
 		if hasattr(user_doc, "enabled") and user_doc.enabled != enabled_value:
 			user_doc.enabled = enabled_value
 			has_changes = True
+		has_changes = self._sync_image_fields(user_doc) or has_changes
 
-		# Sync cover_image to user_image
+		return has_changes
+
+	def _sync_image_fields(self, user_doc):
+		"""Sync cover_image from User Manager to user_image in User doctype"""
 		if hasattr(self, "cover_image") and hasattr(user_doc, "user_image"):
 			cover_image = getattr(self, "cover_image", None)
 			user_image = getattr(user_doc, "user_image", None)
@@ -344,9 +347,8 @@ class UserManager(Document):
 			user_image_normalized = user_image if user_image not in [None, ""] else None
 			if cover_image_normalized != user_image_normalized:
 				user_doc.user_image = cover_image
-				has_changes = True
-
-		return has_changes
+				return True
+		return False
 
 	def _sync_role_profiles(self, user_doc):
 		"""Sync role profiles from User Manager to User doctype"""
@@ -510,6 +512,17 @@ def _get_or_create_dhwani_doc(user_doc):
 	), True
 
 
+def _sync_image_fields_from_user(user_doc, dhwani_doc):
+	"""Sync user_image from User doctype to cover_image in User Manager"""
+	if hasattr(user_doc, "user_image") and hasattr(dhwani_doc, "cover_image"):
+		user_image = getattr(user_doc, "user_image", None)
+		cover_image = getattr(dhwani_doc, "cover_image", None)
+		if user_image != cover_image:
+			dhwani_doc.cover_image = user_image
+			return True
+	return False
+
+
 def _sync_fields_from_user(user_doc, dhwani_doc):
 	"""Sync all fields automatically from User to Dhwani - same field names"""
 	has_changes = False
@@ -544,13 +557,8 @@ def _sync_fields_from_user(user_doc, dhwani_doc):
 			dhwani_doc.status = status_value
 			has_changes = True
 
-	# Sync user_image to cover_image
-	if hasattr(user_doc, "user_image") and hasattr(dhwani_doc, "cover_image"):
-		user_image = getattr(user_doc, "user_image", None)
-		cover_image = getattr(dhwani_doc, "cover_image", None)
-		if user_image != cover_image:
-			dhwani_doc.cover_image = user_image
-			has_changes = True
+	# Sync image fields
+	has_changes = _sync_image_fields_from_user(user_doc, dhwani_doc) or has_changes
 
 	return has_changes
 
