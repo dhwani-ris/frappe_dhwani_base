@@ -323,7 +323,6 @@ class UserManager(Document):
 					dhwani_value = getattr(self, fieldname, None)
 					user_value = getattr(user_doc, fieldname, None)
 
-					# Normalize None and empty string values for comparison
 					dhwani_normalized = dhwani_value if dhwani_value not in [None, ""] else None
 					user_normalized = user_value if user_value not in [None, ""] else None
 
