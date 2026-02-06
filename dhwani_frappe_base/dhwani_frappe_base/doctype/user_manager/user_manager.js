@@ -11,13 +11,6 @@ frappe.ui.form.on("User Manager", {
 			}
 		}
 
-		// Force show username field and disable it
-		if (frm.fields_dict.username) {
-			if (frm.fields_dict.username.$wrapper) {
-				frm.fields_dict.username.$input.prop("disabled", true);
-			}
-		}
-
 		load_role_profiles(frm);
 		if (frm.doc.email) {
 			fetch_username_from_user(frm);
