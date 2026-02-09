@@ -8,17 +8,19 @@
  "field_order": [
   "program",
   "column_break_xbdw",
-  "project"
+  "project",
+  "advanced_control_section",
+  "apply_to_all_doctypes",
+  "applicable_for"
  ],
  "fields": [
   {
    "fieldname": "program",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Program",
-   "options": "TMF Program",
-   "reqd": 1,
-   "description": null
+   "label": "Allow",
+   "options": "DocType",
+   "reqd": 1
   },
   {
    "fieldname": "column_break_xbdw",
@@ -26,18 +28,36 @@
   },
   {
    "fieldname": "project",
-   "fieldtype": "Link",
-   "label": "Project",
-   "link_filters": "[[\"TMF Project\",\"program\",\"=\",\"eval:doc.program\"]]",
-   "options": "TMF Project",
+   "fieldtype": "Dynamic Link",
+   "label": "For Value",
+   "options": "program",
    "reqd": 1
+  },
+  {
+   "fieldname": "advanced_control_section",
+   "fieldtype": "Section Break",
+   "label": "Advanced Control"
+  },
+  {
+   "default": "1",
+   "fieldname": "apply_to_all_doctypes",
+   "fieldtype": "Check",
+   "hidden": 1,
+   "label": "Apply To All Document Types"
+  },
+  {
+   "fieldname": "applicable_for",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Applicable For",
+   "options": "DocType"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "istable": 1,
  "links": [],
- "modified": "2026-01-12 11:57:12.384890",
+ "modified": "2026-02-06 14:49:23.266905",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Program Access",

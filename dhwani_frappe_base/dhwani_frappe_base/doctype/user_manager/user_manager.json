@@ -1,0 +1,182 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:email",
+ "creation": "2026-01-09 17:02:45.269712",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "basic_information_section",
+  "full_name",
+  "mobile_no",
+  "column_break_yevr",
+  "email",
+  "status",
+  "column_break_bdrs",
+  "birth_date",
+  "username",
+  "column_break_ftlx",
+  "gender",
+  "cover_image",
+  "role_profile_assignment_section",
+  "role_profile_html",
+  "role_profiles",
+  "program_access_section",
+  "table_fkmn",
+  "settings_tab",
+  "change_password_section",
+  "new_password"
+ ],
+ "fields": [
+  {
+   "default": "Active",
+   "depends_on": "eval:!doc.__islocal",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nInactive",
+   "reqd": 1
+  },
+  {
+   "fieldname": "basic_information_section",
+   "fieldtype": "Section Break",
+   "label": "Basic Information"
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Full Name",
+   "read_only_depends_on": "eval:!doc.__islocal",
+   "reqd": 1
+  },
+  {
+   "fieldname": "username",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_standard_filter": 1,
+   "label": "Username",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_yevr",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "options": "Email",
+   "read_only_depends_on": "eval:!doc.__islocal",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "mobile_no",
+   "fieldtype": "Data",
+   "label": "Mobile Number",
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_bdrs",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "birth_date",
+   "fieldtype": "Date",
+   "label": "Birth Date"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Link",
+   "label": "Gender",
+   "options": "Gender"
+  },
+  {
+   "fieldname": "cover_image",
+   "fieldtype": "Attach Image",
+   "hidden": 1,
+   "label": "Cover Image"
+  },
+  {
+   "fieldname": "column_break_ftlx",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "role_profile_assignment_section",
+   "fieldtype": "Section Break",
+   "label": "Role Profile Assignment"
+  },
+  {
+   "default": "<H1>dfdf</h1>",
+   "fieldname": "role_profile_html",
+   "fieldtype": "HTML"
+  },
+  {
+   "fieldname": "role_profiles",
+   "fieldtype": "Table MultiSelect",
+   "hidden": 1,
+   "label": "Role Profiles",
+   "options": "User Role Profile"
+  },
+  {
+   "fieldname": "program_access_section",
+   "fieldtype": "Section Break",
+   "label": "Program Access"
+  },
+  {
+   "fieldname": "table_fkmn",
+   "fieldtype": "Table",
+   "options": "Program Access"
+  },
+  {
+   "fieldname": "settings_tab",
+   "fieldtype": "Tab Break",
+   "label": "Settings"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "change_password_section",
+   "fieldtype": "Section Break",
+   "label": "Change Password"
+  },
+  {
+   "depends_on": "eval:!doc.__islocal",
+   "fieldname": "new_password",
+   "fieldtype": "Password",
+   "label": "Set New Password"
+  }
+ ],
+ "grid_page_length": 50,
+ "image_field": "cover_image",
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-02-06 14:35:25.886120",
+ "modified_by": "Administrator",
+ "module": "Dhwani Frappe Base",
+ "name": "User Manager",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "full_name"
+}
