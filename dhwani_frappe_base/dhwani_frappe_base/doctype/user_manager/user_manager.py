@@ -69,7 +69,7 @@ class UserManager(Document):
 
 		program_access_table = self._get_program_access_table()
 		if not program_access_table or len(program_access_table) == 0:
-			frappe.throw(_("Please add at least one Program Access"))
+			frappe.throw(_("Please add at least one User Permission"))
 
 		# Validate for duplicate projects and programs
 		self._validate_program_access_duplicates(program_access_table)
@@ -98,6 +98,9 @@ class UserManager(Document):
 		user = self.get_user_from_email()
 		if not user:
 			return
+
+		self.delete_existing_user_permissions(user)
+		self.create_user_permission(user)
 
 		self.sync_to_user_doctype(user)
 
@@ -187,32 +190,53 @@ class UserManager(Document):
 		except Exception as e:
 			frappe.log_error(f"Error deleting user permissions: {e!s}")
 
-	def create_user_permission(self, user, allow, for_value):
-		"""Create a User Permission record"""
-		if not user or not allow or not for_value:
+	def create_user_permission(self, user, allow=None, for_value=None):
+		"""Create User Permission records from Program Access table"""
+		if not user:
+			return
+
+		# If allow and for_value provided, create single permission (for backward compatibility)
+		if allow and for_value:
+			try:
+				if frappe.db.exists(
+					"User Permission", {"user": user, "allow": allow, "for_value": for_value}
+				):
+					return
+				frappe.get_doc(
+					{
+						"doctype": "User Permission",
+						"user": user,
+						"allow": allow,
+						"for_value": for_value,
+						"apply_to_all_doctypes": 1,
+					}
+				).insert(ignore_permissions=True, ignore_links=True)
+			except Exception as e:
+				frappe.throw(_("Error creating User Permission: {0}").format(e))
+			return
+
+		# Create permissions from Program Access table
+		program_access_table = self._get_program_access_table()
+		if not program_access_table:
 			return
 
 		try:
-			# Check if already exists (query directly to avoid race conditions)
-			existing = frappe.db.exists(
-				"User Permission", {"user": user, "allow": allow, "for_value": for_value}
+			meta = frappe.get_meta("Program Access")
+			link_field = next(
+				(f.fieldname for f in meta.fields if f.fieldtype == "Link" and f.options == "DocType"), None
+			)
+			dynamic_link_field = next(
+				(f.fieldname for f in meta.fields if f.fieldtype == "Dynamic Link"), None
 			)
 
-			if existing:
-				return
-
-			user_permission = frappe.get_doc(
-				{
-					"doctype": "User Permission",
-					"user": user,
-					"allow": allow,
-					"for_value": for_value,
-					"apply_to_all_doctypes": 1,
-				}
-			)
-			user_permission.insert(ignore_permissions=True, ignore_links=True)
+			if link_field and dynamic_link_field:
+				for row in program_access_table:
+					allow_val = getattr(row, link_field, None)
+					for_val = getattr(row, dynamic_link_field, None)
+					if allow_val and for_val:
+						self.create_user_permission(user, allow_val, for_val)
 		except Exception as e:
-			frappe.throw(_("Error creating User Permission: {0}").format(e))
+			frappe.throw(_("Error creating User Permissions: {0}").format(e))
 
 	def _get_roles_from_role_profile(self, role_profile_value):
 		"""Get all Role names directly from Role Profile value"""
@@ -436,7 +460,7 @@ class UserManager(Document):
 		"""Validate that there are no duplicate projects or programs in Program Access table"""
 		projects = [row.project for row in program_access_table if row.project]
 		if len(projects) != len(set(projects)):
-			frappe.throw(_("Project must be unique"))
+			frappe.throw(_("Value must be unique"))
 
 	def _get_all_roles(self):
 		"""Get all roles from role_profiles"""
