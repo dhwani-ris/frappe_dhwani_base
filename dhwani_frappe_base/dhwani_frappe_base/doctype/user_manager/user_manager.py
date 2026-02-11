@@ -99,17 +99,6 @@ class UserManager(Document):
 		if not user:
 			return
 
-		self.delete_existing_user_permissions(user)
-
-		program_access_table = self._get_program_access_table()
-		if program_access_table:
-			for row in program_access_table:
-				program_value = getattr(row, "program", None)
-				project_value = getattr(row, "project", None)
-				if program_value and project_value:
-					# Dynamic Link: allow = program_value (doctype), for_value = project_value
-					self.create_user_permission(user, program_value, project_value)
-
 		self.sync_to_user_doctype(user)
 
 	def get_user_from_email(self):
