@@ -23,6 +23,11 @@
   "role_profiles",
   "program_access_section",
   "table_fkmn",
+  "module_selection_tab",
+  "section_break_rcdh",
+  "module_profile",
+  "modules_html",
+  "block_modules",
   "settings_tab",
   "change_password_section",
   "new_password"
@@ -146,13 +151,41 @@
    "fieldname": "new_password",
    "fieldtype": "Password",
    "label": "Set New Password"
+  },
+  {
+   "fieldname": "section_break_rcdh",
+   "fieldtype": "Section Break",
+   "label": "Module Profile Assignment"
+  },
+  {
+   "fieldname": "module_profile",
+   "fieldtype": "Link",
+   "label": "Module Profile",
+   "options": "Module Profile"
+  },
+  {
+   "default": "<H1>dfdf</h1>",
+   "fieldname": "modules_html",
+   "fieldtype": "HTML"
+  },
+  {
+   "fieldname": "block_modules",
+   "fieldtype": "Table",
+   "hidden": 1,
+   "label": "Block Modules",
+   "options": "Block Module"
+  },
+  {
+   "fieldname": "module_selection_tab",
+   "fieldtype": "Tab Break",
+   "label": "Module Selection"
   }
  ],
  "grid_page_length": 50,
  "image_field": "cover_image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-02-06 14:35:25.886120",
+ "modified": "2026-02-19 18:42:21.806008",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "User Manager",
