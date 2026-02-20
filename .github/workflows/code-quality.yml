@@ -1,15 +1,14 @@
 name: Quality Checks
 
 on:
+  # Only run on PRs - no push trigger to avoid duplicates
   pull_request:
+    branches: [ main, master, develop, development ]
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
 
 permissions:
   contents: read
-
-concurrency:
-  group: commitcheck-frappe-${{ github.event_name }}-${{ github.event.number }}
-  cancel-in-progress: true
 
 jobs:
   commit-lint:
@@ -29,12 +28,40 @@ jobs:
       - name: Check commit titles
         run: |
           npm install @commitlint/cli @commitlint/config-conventional
+          
+          # Verify config file exists
+          if [ ! -f commitlint.config.js ]; then
+            echo "Error: commitlint.config.js not found"
+            exit 1
+          fi
+          
+          echo "=== Commitlint config file ==="
+          cat commitlint.config.js
+          echo ""
+          
+          # Check if packages are installed
+          echo "=== Installed packages ==="
+          npm list @commitlint/cli @commitlint/config-conventional || true
+          echo ""
+          
+          # Test commitlint config loading
+          echo "=== Testing commitlint config ==="
+          npx commitlint --print-config || echo "Config test failed"
+          echo ""
+          
+          # Show commits to be checked
+          echo "=== Commits to check ==="
+          git log --oneline ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }} || echo "No commits found"
+          echo ""
+          
+          # Run commitlint (it will auto-detect commitlint.config.js in root)
+          echo "=== Running commitlint ==="
           npx commitlint --verbose --from ${{ github.event.pull_request.base.sha }} --to ${{ github.event.pull_request.head.sha }}
 
   docs-required:
     name: 'Documentation Required'
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/development'))
 
     steps:
       - name: 'Setup Environment'
@@ -66,7 +93,7 @@ jobs:
   linter:
     name: 'Semgrep Rules'
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/development'))
 
     steps:
       - uses: actions/checkout@v4
@@ -86,7 +113,7 @@ jobs:
   precommit:
     name: 'Pre-Commit'
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/development'))
 
     steps:
       - uses: actions/checkout@v4
@@ -94,7 +121,7 @@ jobs:
         with:
           python-version: '3.13'
           cache: pip
-      - uses: pre-commit/action@v3.0.1
+      
       - name: Check for pre-commit config
         run: |
           if [ ! -f .pre-commit-config.yaml ]; then
@@ -104,8 +131,18 @@ jobs:
             echo "Pre-commit config already exists."
           fi
       
-      - name: Install pre-commit
-        run: pip install pre-commit
+      - name: Install pre-commit and dependencies
+        run: |
+          pip install pre-commit
+          pre-commit install --install-hooks
       
-      - name: Run pre-commit
-        run: pre-commit run --all-files
+      - name: Run pre-commit (check only, no auto-fix)
+        run: |
+          # Run pre-commit in CI mode - it will check but not modify files
+          # Skip no-commit-to-branch hook in CI (it's meant for local development)
+          # This will fail if files need formatting, which is what we want
+          SKIP=no-commit-to-branch pre-commit run --all-files --show-diff-on-failure || {
+            echo "❌ Pre-commit checks failed. Some files need formatting or have issues."
+            echo "Please run 'pre-commit run --all-files' locally to fix the issues."
+            exit 1
+          }

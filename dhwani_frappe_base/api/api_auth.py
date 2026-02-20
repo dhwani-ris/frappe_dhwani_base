@@ -54,9 +54,29 @@ def _generate_auth_token(user: Any) -> str:
 	return encode_api_credentials(user.api_key, api_secret)
 
 
+def _get_mobile_configuration() -> list[dict[str, Any]]:
+	"""Get mobile configuration from Single doctype"""
+	try:
+		config = frappe.get_single("Mobile Configuration")
+		configuration = []
+		if config.table_kxcj:
+			for row in config.table_kxcj:
+				configuration.append(
+					{
+						"mobile_doctype": row.mobile_doctype,
+						"two_way_sync": bool(row.two_way_sync),
+						"group_name": row.group_name or "",
+					}
+				)
+		return configuration
+	except Exception:
+		# Return empty list if configuration doesn't exist or error occurs
+		return []
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=get_mobile_login_ratelimit, seconds=60 * 60)
-def login(username: str | None = None, password: str | None = None) -> dict[str, str]:
+def login(username: str | None = None, password: str | None = None) -> None:
 	"""Mobile app login handler"""
 	try:
 		user = _authenticate_user(username, password)
@@ -66,7 +86,24 @@ def login(username: str | None = None, password: str | None = None) -> dict[str,
 
 		frappe.local.login_manager.logout()
 
-		return {"message": _("Logged In"), "user": user.name, "full_name": user.full_name, "token": token}
+		# Clear unwanted fields set by post_login()
+		frappe.local.response.pop("message", None)
+		frappe.local.response.pop("home_page", None)
+		frappe.response.pop("full_name", None)
+
+		# Get mobile configuration
+		mobile_config = _get_mobile_configuration()
+
+		# Set only the required response fields
+		frappe.local.response.update(
+			{
+				"message": _("Logged In"),
+				"user": user.name,
+				"full_name": user.full_name,
+				"token": token,
+				"mobile_doctypes": mobile_config,
+			}
+		)
 
 	except frappe.AuthenticationError:
 		frappe.throw(_("Invalid username or password or user is not allowed to use mobile app"))
@@ -166,7 +203,7 @@ def _generate_user_token(login_manager: LoginManager) -> tuple[Any, str]:
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(key="tmp_id", limit=get_mobile_otp_ratelimit, seconds=60 * 10)
-def verify_mobile_otp(tmp_id: str, otp: str) -> dict[str, str]:
+def verify_mobile_otp(tmp_id: str, otp: str) -> None:
 	try:
 		if not tmp_id or not otp:
 			frappe.throw(_("OTP and temporary ID are required"), frappe.ValidationError)
@@ -176,12 +213,24 @@ def verify_mobile_otp(tmp_id: str, otp: str) -> dict[str, str]:
 		user_doc, token = _generate_user_token(login_manager)
 		login_manager.logout()
 
-		return {
-			"message": _("Logged In"),
-			"user": user_doc.name,
-			"full_name": user_doc.full_name,
-			"token": token,
-		}
+		# Clear unwanted fields set by post_login()
+		frappe.local.response.pop("message", None)
+		frappe.local.response.pop("home_page", None)
+		frappe.response.pop("full_name", None)
+
+		# Get mobile configuration
+		mobile_config = _get_mobile_configuration()
+
+		# Set only the required response fields
+		frappe.local.response.update(
+			{
+				"message": _("Logged In"),
+				"user": user_doc.name,
+				"full_name": user_doc.full_name,
+				"token": token,
+				"mobile_doctypes": mobile_config,
+			}
+		)
 
 	except frappe.AuthenticationError:
 		frappe.throw(_("Invalid OTP or session expired"))
