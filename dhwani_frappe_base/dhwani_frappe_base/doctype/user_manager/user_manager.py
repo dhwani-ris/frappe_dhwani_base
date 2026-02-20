@@ -694,3 +694,10 @@ def get_all_modules():
 	"""Return sorted list of module names for the module checkbox grid (same as User __onload)."""
 
 	return sorted(m.get("module_name") for m in get_modules_from_all_apps())
+
+
+@frappe.whitelist()
+def get_all_role_profiles():
+	"""Return all role profile names sorted alphabetically"""
+	role_profiles = frappe.get_all("Role Profile", fields=["name"], order_by="name")
+	return sorted([rp.get("name") for rp in role_profiles])
