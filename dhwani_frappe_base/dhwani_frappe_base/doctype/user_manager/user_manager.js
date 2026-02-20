@@ -129,100 +129,33 @@ function get_link_field_name(frm) {
 
 function load_role_profiles(frm) {
 	role_profile_link_field = null;
-
-	frappe.model.with_doctype("Role Profile", () => {
-		let meta = frappe.get_meta("Role Profile");
-		let title_field = meta.title_field || "name";
-
-		let data_fields = meta.fields
-			.filter((f) => ["Data", "Small Text", "Text"].includes(f.fieldtype))
-			.map((f) => f.fieldname)
-			.filter((f) => f !== "name");
-
-		let fields_to_fetch = ["name"];
-		if (title_field !== "name") {
-			fields_to_fetch.push(title_field);
-		}
-
-		let common_fields = ["role", "role_name", "title", "profile_name"];
-		common_fields.forEach((field) => {
-			if (
-				meta.fields.find((f) => f.fieldname === field) &&
-				!fields_to_fetch.includes(field)
-			) {
-				fields_to_fetch.push(field);
-			}
-		});
-
-		data_fields.slice(0, 3).forEach((field) => {
-			if (!fields_to_fetch.includes(field)) {
-				fields_to_fetch.push(field);
-			}
-		});
-
-		frappe.db
-			.get_list("Role Profile", {
-				fields: fields_to_fetch,
-				order_by: (title_field !== "name" ? title_field : "name") + " asc",
-			})
-			.then((profiles) => {
-				if (profiles.length === 0) {
-					frm.set_df_property(
-						"role_profile_html",
-						"options",
-						`
-						<div style="
-							padding: 15px;
-							text-align: center;
-							color: #888;
-							font-style: italic;
-						">
-							No Role Profile Created
-						</div>
+	if (!frm.fields_dict.role_profile_html) {
+		return;
+	}
+	frappe.call({
+		method: "dhwani_frappe_base.dhwani_frappe_base.doctype.user_manager.user_manager.get_all_role_profiles",
+		callback: function (r) {
+			let all_role_profiles = r.message || [];
+			if (all_role_profiles.length === 0) {
+				frm.set_df_property(
+					"role_profile_html",
+					"options",
 					`
-					);
-					return;
-				}
-
-				let display_field = title_field;
-				if (
-					title_field === "name" ||
-					!profiles[0][title_field] ||
-					profiles[0][title_field] === profiles[0].name
-				) {
-					for (let field of fields_to_fetch) {
-						if (
-							field !== "name" &&
-							profiles[0][field] &&
-							typeof profiles[0][field] === "string" &&
-							profiles[0][field].trim() &&
-							profiles[0][field] !== profiles[0].name
-						) {
-							display_field = field;
-							break;
-						}
-					}
-				}
-
-				profiles.forEach((profile) => {
-					profile._display_name = profile[display_field] || profile.name;
-				});
-
-				render_checkboxes(frm, profiles, display_field);
-			})
-			.catch((err) => {
-				frappe.db
-					.get_list("Role Profile", {
-						fields: ["name"],
-						order_by: "name asc",
-					})
-					.then((profiles) => {
-						profiles.forEach((profile) => {
-							profile._display_name = profile.name;
-						});
-						render_checkboxes(frm, profiles, "name");
-					});
-			});
+					<div style="
+						padding: 15px;
+						text-align: center;
+						color: #888;
+						font-style: italic;
+					">
+						No Role Profile Created
+					</div>
+				`
+				);
+				return;
+			}
+			let profiles = all_role_profiles.map((name) => ({ name: name, _display_name: name }));
+			render_checkboxes(frm, profiles, "name");
+		},
 	});
 }
 
