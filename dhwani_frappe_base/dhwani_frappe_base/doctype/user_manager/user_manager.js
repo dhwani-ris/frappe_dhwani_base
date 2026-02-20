@@ -15,6 +15,35 @@ frappe.ui.form.on("User Manager", {
 		if (frm.doc.email) {
 			fetch_username_from_user(frm);
 		}
+
+		render_module_checkboxes(frm);
+	},
+
+	module_profile(frm) {
+		if (frm.doc.module_profile) {
+			frappe.call({
+				method: "dhwani_frappe_base.dhwani_frappe_base.doctype.user_manager.user_manager.get_module_profile",
+				args: { module_profile: frm.doc.module_profile },
+				callback: function (data) {
+					frm.set_value("block_modules", []);
+					(data.message || []).forEach(function (row) {
+						let d = frm.add_child("block_modules");
+						d.module = row.module;
+					});
+					frm.dirty();
+					frm.refresh_field("block_modules");
+					render_module_checkboxes(frm);
+				},
+			});
+		} else {
+			frm.set_value("block_modules", []);
+			frm.refresh_field("block_modules");
+			render_module_checkboxes(frm);
+		}
+	},
+
+	modules_html(frm) {
+		setup_module_checkbox_listeners(frm);
 	},
 
 	email(frm) {
@@ -138,7 +167,20 @@ function load_role_profiles(frm) {
 			})
 			.then((profiles) => {
 				if (profiles.length === 0) {
-					render_checkboxes(frm, [], "name");
+					frm.set_df_property(
+						"role_profile_html",
+						"options",
+						`
+						<div style="
+							padding: 15px;
+							text-align: center;
+							color: #888;
+							font-style: italic;
+						">
+							No Role Profile Created
+						</div>
+					`
+					);
 					return;
 				}
 
@@ -294,4 +336,89 @@ function update_role_profiles_field(frm) {
 		frm.dirty();
 		frm.refresh_field("role_profiles");
 	}
+}
+
+function get_all_modules_then_render(frm, callback) {
+	let all_modules = (frm.doc.__onload && frm.doc.__onload.all_modules) || [];
+	if (all_modules.length > 0) {
+		callback(all_modules);
+		return;
+	}
+	frappe.call({
+		method: "dhwani_frappe_base.dhwani_frappe_base.doctype.user_manager.user_manager.get_all_modules",
+		callback: function (r) {
+			all_modules = r.message || [];
+			if (!frm.doc.__onload) {
+				frm.doc.__onload = {};
+			}
+			frm.doc.__onload.all_modules = all_modules;
+			callback(all_modules);
+		},
+	});
+}
+
+function render_module_checkboxes(frm) {
+	if (!frm.fields_dict.modules_html || !frm.fields_dict.modules_html.$wrapper) {
+		return;
+	}
+	get_all_modules_then_render(frm, function (all_modules) {
+		if (all_modules.length === 0) {
+			frm.fields_dict.modules_html.$wrapper.html(`
+				<div style="padding: 15px; text-align: center; color: #888; font-style: italic;">
+					No modules available
+				</div>
+			`);
+			return;
+		}
+		let block_list = (frm.doc.block_modules || []).map(function (row) {
+			return row.module;
+		});
+		let disabled = frm.doc.module_profile ? "disabled" : "";
+		let html = `
+			<div class="module-profile-checkboxes" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 10px;">
+		`;
+		all_modules.forEach(function (module_name) {
+			let checked = block_list.indexOf(module_name) === -1 ? "checked" : "";
+			html += `
+				<label style="display: flex; align-items: center; cursor: pointer; padding: 2px;">
+					<input type="checkbox"
+						class="module-profile-checkbox"
+						data-module="${frappe.utils.escape_html(module_name)}"
+						${checked}
+						${disabled}
+						style="margin-right: 8px; cursor: pointer;">
+					<span>${frappe.utils.escape_html(module_name)}</span>
+				</label>
+			`;
+		});
+		html += `</div>`;
+		frm.fields_dict.modules_html.$wrapper.html(html);
+		setup_module_checkbox_listeners(frm);
+	});
+}
+
+function setup_module_checkbox_listeners(frm) {
+	$(".module-profile-checkbox").off("change");
+	$(".module-profile-checkbox").on("change", function () {
+		update_block_modules_from_checkboxes(frm);
+	});
+}
+
+function update_block_modules_from_checkboxes(frm) {
+	if (frm.doc.module_profile) {
+		return;
+	}
+	let blocked = [];
+	$(".module-profile-checkbox").each(function () {
+		if (!$(this).prop("checked")) {
+			blocked.push($(this).data("module"));
+		}
+	});
+	frm.doc.block_modules = [];
+	blocked.forEach(function (module_name) {
+		let row = frm.add_child("block_modules");
+		row.module = module_name;
+	});
+	frm.dirty();
+	frm.refresh_field("block_modules");
 }
