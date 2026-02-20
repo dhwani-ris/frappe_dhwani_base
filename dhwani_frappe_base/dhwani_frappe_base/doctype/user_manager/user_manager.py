@@ -113,16 +113,25 @@ class UserManager(Document):
 			return self.email
 
 		setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
+		user_created = False
 		try:
 			user_doc = self._create_user_document()
 			self._apply_role_profiles_to_user(user_doc)
 			self._apply_roles_to_user(user_doc)
 			user_doc.flags.ignore_validate = True
 			user_doc.save(ignore_permissions=True)
+			user_created = True
 			self._sync_username_from_user()
+			setattr(frappe.flags, f"user_just_created_{self.email}", True)
 			return self.email
 		except Exception as e:
-			frappe.throw(_("Error creating user: {0}").format(e))
+			# Cleanup partially created user if creation failed
+			if user_created and frappe.db.exists("User", self.email):
+				try:
+					frappe.delete_doc("User", self.email, ignore_permissions=True, force=True)
+				except Exception:
+					pass
+			frappe.throw(_("Error creating user: {0}").format(str(e)))
 		finally:
 			try:
 				if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
@@ -269,6 +278,7 @@ class UserManager(Document):
 		sync_flag = f"syncing_user_{user_email}"
 		if hasattr(frappe.flags, sync_flag) and getattr(frappe.flags, sync_flag, False):
 			return
+		skip_role_profiles = getattr(frappe.flags, f"user_just_created_{user_email}", False)
 		try:
 			setattr(frappe.flags, sync_flag, True)
 			user_doc = frappe.get_doc("User", user_email)
@@ -276,12 +286,14 @@ class UserManager(Document):
 			has_changes = False
 			dhwani_meta = frappe.get_meta("User Manager")
 			has_changes = self._sync_common_fields(user_doc, dhwani_meta) or has_changes
-			has_changes = self._sync_role_profiles(user_doc) or has_changes
+			if not skip_role_profiles:
+				has_changes = self._sync_role_profiles(user_doc) or has_changes
 			has_changes = self._sync_roles(user_doc) or has_changes
 			if has_changes:
 				user_doc.reload()
 				self._sync_common_fields(user_doc, dhwani_meta)
-				self._sync_role_profiles(user_doc)
+				if not skip_role_profiles:
+					self._sync_role_profiles(user_doc)
 				self._sync_roles(user_doc)
 				# Set flag to prevent User->Dhwani sync loop
 				setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
@@ -293,15 +305,14 @@ class UserManager(Document):
 						delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
 		except Exception as e:
 			error_msg = str(e)
-			if "has been modified" in error_msg:
-				# Version conflict - will sync on next save, not critical
-				pass
-			else:
-				frappe.throw(_("Error syncing to User doctype: {0}").format(e))
+			if "has been modified" not in error_msg:
+				frappe.throw(_("Error syncing to User doctype: {0}").format(str(e)))
 		finally:
 			try:
 				if hasattr(frappe.flags, sync_flag):
 					delattr(frappe.flags, sync_flag)
+				if hasattr(frappe.flags, f"user_just_created_{user_email}"):
+					delattr(frappe.flags, f"user_just_created_{user_email}")
 			except (KeyError, AttributeError):
 				pass
 
@@ -385,6 +396,16 @@ class UserManager(Document):
 					)
 					if role_profile_value:
 						dhwani_role_profiles.append(role_profile_value)
+
+			# Safety: Don't clear if source is empty but user has profiles
+			if not dhwani_role_profiles and current_role_profiles:
+				frappe.throw(
+					_(
+						"UserManager {0}: Role profiles missing in source. "
+						"User {1} has {2} role profile(s) but User Manager has none. "
+						"Please select role profiles in User Manager."
+					).format(self.name, user_doc.name, len(current_role_profiles))
+				)
 
 			if set(current_role_profiles) != set(dhwani_role_profiles):
 				user_doc.role_profiles = []
