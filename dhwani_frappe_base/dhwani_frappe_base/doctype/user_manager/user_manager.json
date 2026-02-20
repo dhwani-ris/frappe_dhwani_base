@@ -1,6 +1,5 @@
 {
  "actions": [],
- "allow_rename": 1,
  "autoname": "field:email",
  "creation": "2026-01-09 17:02:45.269712",
  "doctype": "DocType",
@@ -128,7 +127,7 @@
   {
    "fieldname": "program_access_section",
    "fieldtype": "Section Break",
-   "label": "Program Access"
+   "label": "User Permissions"
   },
   {
    "fieldname": "table_fkmn",
@@ -185,7 +184,7 @@
  "image_field": "cover_image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-02-19 18:42:21.806008",
+ "modified": "2026-02-11 15:10:14.866050",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "User Manager",
