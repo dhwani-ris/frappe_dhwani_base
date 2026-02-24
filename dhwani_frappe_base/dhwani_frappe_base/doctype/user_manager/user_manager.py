@@ -698,6 +698,9 @@ def get_all_modules():
 
 @frappe.whitelist()
 def get_all_role_profiles():
-	"""Return all role profile names sorted alphabetically"""
-	role_profiles = frappe.get_all("Role Profile", fields=["role_profile"], order_by="role_profile")
-	return sorted([rp.get("role_profile") for rp in role_profiles])
+	"""Return all role profile names sorted alphabetically (case-insensitive)"""
+	role_profiles = frappe.get_all("Role Profile", fields=["role_profile"])
+	return sorted(
+		[rp.get("role_profile").strip() for rp in role_profiles if rp.get("role_profile")],
+		key=str.lower,
+	)
