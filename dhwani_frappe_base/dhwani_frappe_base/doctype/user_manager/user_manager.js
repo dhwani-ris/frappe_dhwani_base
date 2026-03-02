@@ -15,6 +15,35 @@ frappe.ui.form.on("User Manager", {
 		if (frm.doc.email) {
 			fetch_username_from_user(frm);
 		}
+
+		render_module_checkboxes(frm);
+	},
+
+	module_profile(frm) {
+		if (frm.doc.module_profile) {
+			frappe.call({
+				method: "dhwani_frappe_base.dhwani_frappe_base.doctype.user_manager.user_manager.get_module_profile",
+				args: { module_profile: frm.doc.module_profile },
+				callback: function (data) {
+					frm.set_value("block_modules", []);
+					(data.message || []).forEach(function (row) {
+						let d = frm.add_child("block_modules");
+						d.module = row.module;
+					});
+					frm.dirty();
+					frm.refresh_field("block_modules");
+					render_module_checkboxes(frm);
+				},
+			});
+		} else {
+			frm.set_value("block_modules", []);
+			frm.refresh_field("block_modules");
+			render_module_checkboxes(frm);
+		}
+	},
+
+	modules_html(frm) {
+		setup_module_checkbox_listeners(frm);
 	},
 
 	email(frm) {
@@ -100,87 +129,33 @@ function get_link_field_name(frm) {
 
 function load_role_profiles(frm) {
 	role_profile_link_field = null;
-
-	frappe.model.with_doctype("Role Profile", () => {
-		let meta = frappe.get_meta("Role Profile");
-		let title_field = meta.title_field || "name";
-
-		let data_fields = meta.fields
-			.filter((f) => ["Data", "Small Text", "Text"].includes(f.fieldtype))
-			.map((f) => f.fieldname)
-			.filter((f) => f !== "name");
-
-		let fields_to_fetch = ["name"];
-		if (title_field !== "name") {
-			fields_to_fetch.push(title_field);
-		}
-
-		let common_fields = ["role", "role_name", "title", "profile_name"];
-		common_fields.forEach((field) => {
-			if (
-				meta.fields.find((f) => f.fieldname === field) &&
-				!fields_to_fetch.includes(field)
-			) {
-				fields_to_fetch.push(field);
+	if (!frm.fields_dict.role_profile_html) {
+		return;
+	}
+	frappe.call({
+		method: "dhwani_frappe_base.dhwani_frappe_base.doctype.user_manager.user_manager.get_all_role_profiles",
+		callback: function (r) {
+			let all_role_profiles = r.message || [];
+			if (all_role_profiles.length === 0) {
+				frm.set_df_property(
+					"role_profile_html",
+					"options",
+					`
+					<div style="
+						padding: 15px;
+						text-align: center;
+						color: #888;
+						font-style: italic;
+					">
+						No Role Profile Created
+					</div>
+				`
+				);
+				return;
 			}
-		});
-
-		data_fields.slice(0, 3).forEach((field) => {
-			if (!fields_to_fetch.includes(field)) {
-				fields_to_fetch.push(field);
-			}
-		});
-
-		frappe.db
-			.get_list("Role Profile", {
-				fields: fields_to_fetch,
-				order_by: (title_field !== "name" ? title_field : "name") + " asc",
-			})
-			.then((profiles) => {
-				if (profiles.length === 0) {
-					render_checkboxes(frm, [], "name");
-					return;
-				}
-
-				let display_field = title_field;
-				if (
-					title_field === "name" ||
-					!profiles[0][title_field] ||
-					profiles[0][title_field] === profiles[0].name
-				) {
-					for (let field of fields_to_fetch) {
-						if (
-							field !== "name" &&
-							profiles[0][field] &&
-							typeof profiles[0][field] === "string" &&
-							profiles[0][field].trim() &&
-							profiles[0][field] !== profiles[0].name
-						) {
-							display_field = field;
-							break;
-						}
-					}
-				}
-
-				profiles.forEach((profile) => {
-					profile._display_name = profile[display_field] || profile.name;
-				});
-
-				render_checkboxes(frm, profiles, display_field);
-			})
-			.catch((err) => {
-				frappe.db
-					.get_list("Role Profile", {
-						fields: ["name"],
-						order_by: "name asc",
-					})
-					.then((profiles) => {
-						profiles.forEach((profile) => {
-							profile._display_name = profile.name;
-						});
-						render_checkboxes(frm, profiles, "name");
-					});
-			});
+			let profiles = all_role_profiles.map((name) => ({ name: name, _display_name: name }));
+			render_checkboxes(frm, profiles, "name");
+		},
 	});
 }
 
@@ -294,4 +269,89 @@ function update_role_profiles_field(frm) {
 		frm.dirty();
 		frm.refresh_field("role_profiles");
 	}
+}
+
+function get_all_modules_then_render(frm, callback) {
+	let all_modules = (frm.doc.__onload && frm.doc.__onload.all_modules) || [];
+	if (all_modules.length > 0) {
+		callback(all_modules);
+		return;
+	}
+	frappe.call({
+		method: "dhwani_frappe_base.dhwani_frappe_base.doctype.user_manager.user_manager.get_all_modules",
+		callback: function (r) {
+			all_modules = r.message || [];
+			if (!frm.doc.__onload) {
+				frm.doc.__onload = {};
+			}
+			frm.doc.__onload.all_modules = all_modules;
+			callback(all_modules);
+		},
+	});
+}
+
+function render_module_checkboxes(frm) {
+	if (!frm.fields_dict.modules_html || !frm.fields_dict.modules_html.$wrapper) {
+		return;
+	}
+	get_all_modules_then_render(frm, function (all_modules) {
+		if (all_modules.length === 0) {
+			frm.fields_dict.modules_html.$wrapper.html(`
+				<div style="padding: 15px; text-align: center; color: #888; font-style: italic;">
+					No modules available
+				</div>
+			`);
+			return;
+		}
+		let block_list = (frm.doc.block_modules || []).map(function (row) {
+			return row.module;
+		});
+		let disabled = frm.doc.module_profile ? "disabled" : "";
+		let html = `
+			<div class="module-profile-checkboxes" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; padding: 10px;">
+		`;
+		all_modules.forEach(function (module_name) {
+			let checked = block_list.indexOf(module_name) === -1 ? "checked" : "";
+			html += `
+				<label style="display: flex; align-items: center; cursor: pointer; padding: 2px;">
+					<input type="checkbox"
+						class="module-profile-checkbox"
+						data-module="${frappe.utils.escape_html(module_name)}"
+						${checked}
+						${disabled}
+						style="margin-right: 8px; cursor: pointer;">
+					<span>${frappe.utils.escape_html(module_name)}</span>
+				</label>
+			`;
+		});
+		html += `</div>`;
+		frm.fields_dict.modules_html.$wrapper.html(html);
+		setup_module_checkbox_listeners(frm);
+	});
+}
+
+function setup_module_checkbox_listeners(frm) {
+	$(".module-profile-checkbox").off("change");
+	$(".module-profile-checkbox").on("change", function () {
+		update_block_modules_from_checkboxes(frm);
+	});
+}
+
+function update_block_modules_from_checkboxes(frm) {
+	if (frm.doc.module_profile) {
+		return;
+	}
+	let blocked = [];
+	$(".module-profile-checkbox").each(function () {
+		if (!$(this).prop("checked")) {
+			blocked.push($(this).data("module"));
+		}
+	});
+	frm.doc.block_modules = [];
+	blocked.forEach(function (module_name) {
+		let row = frm.add_child("block_modules");
+		row.module = module_name;
+	});
+	frm.dirty();
+	frm.refresh_field("block_modules");
 }

@@ -6,6 +6,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.model.naming import append_number_if_name_exists
 from frappe.utils import validate_phone_number
+from frappe.utils.modules import get_modules_from_all_apps
 from frappe.utils.password import update_password
 
 SYNC_FLAG_USER_TO_DHWANI = "syncing_user_to_dhwani"
@@ -45,6 +46,13 @@ class UserManager(Document):
 				return getattr(self, field_name)
 		return None
 
+	def onload(self):
+		"""Set all_modules for ModuleEditor (same as Frappe User)"""
+		self.set_onload(
+			"all_modules",
+			sorted(m.get("module_name") for m in get_modules_from_all_apps()),
+		)
+
 	def validate(self):
 		"""Core validation only"""
 		if not self.email:
@@ -66,6 +74,8 @@ class UserManager(Document):
 
 		if not has_role_profile:
 			frappe.throw(_("Please select at least one Role Profile"))
+
+		self._validate_allowed_modules()
 
 		program_access_table = self._get_program_access_table()
 		if not program_access_table or len(program_access_table) == 0:
@@ -113,16 +123,26 @@ class UserManager(Document):
 			return self.email
 
 		setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
+		user_created = False
 		try:
 			user_doc = self._create_user_document()
 			self._apply_role_profiles_to_user(user_doc)
 			self._apply_roles_to_user(user_doc)
+			self._apply_module_profile_to_user(user_doc)
 			user_doc.flags.ignore_validate = True
 			user_doc.save(ignore_permissions=True)
+			user_created = True
 			self._sync_username_from_user()
+			setattr(frappe.flags, f"user_just_created_{self.email}", True)
 			return self.email
 		except Exception as e:
-			frappe.throw(_("Error creating user: {0}").format(e))
+			# Cleanup partially created user if creation failed
+			if user_created and frappe.db.exists("User", self.email):
+				try:
+					frappe.delete_doc("User", self.email, ignore_permissions=True, force=True)
+				except Exception:
+					pass
+			frappe.throw(_("Error creating user: {0}").format(str(e)))
 		finally:
 			try:
 				if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
@@ -173,6 +193,30 @@ class UserManager(Document):
 		roles_list = self._get_all_roles()
 		if roles_list:
 			user_doc.add_roles(*roles_list)
+
+	def _validate_allowed_modules(self):
+		"""When module_profile is set, sync block_modules from Module Profile (same as Frappe User)"""
+		if not getattr(self, "module_profile", None):
+			return
+		try:
+			module_profile_doc = frappe.get_doc("Module Profile", self.module_profile)
+		except Exception:
+			return
+		self.set("block_modules", [])
+		for d in module_profile_doc.get("block_modules") or []:
+			if d.get("module"):
+				self.append("block_modules", {"module": d.module})
+
+	def _apply_module_profile_to_user(self, user_doc):
+		"""Apply module_profile and block_modules from User Manager to User"""
+		if hasattr(user_doc, "module_profile"):
+			user_doc.module_profile = getattr(self, "module_profile", None) or ""
+		if not hasattr(user_doc, "block_modules"):
+			return
+		user_doc.set("block_modules", [])
+		for row in getattr(self, "block_modules", []) or []:
+			if getattr(row, "module", None):
+				user_doc.append("block_modules", {"module": row.module})
 
 	def _sync_username_from_user(self):
 		"""Sync username from User to User Manager"""
@@ -269,6 +313,7 @@ class UserManager(Document):
 		sync_flag = f"syncing_user_{user_email}"
 		if hasattr(frappe.flags, sync_flag) and getattr(frappe.flags, sync_flag, False):
 			return
+		skip_role_profiles = getattr(frappe.flags, f"user_just_created_{user_email}", False)
 		try:
 			setattr(frappe.flags, sync_flag, True)
 			user_doc = frappe.get_doc("User", user_email)
@@ -276,13 +321,17 @@ class UserManager(Document):
 			has_changes = False
 			dhwani_meta = frappe.get_meta("User Manager")
 			has_changes = self._sync_common_fields(user_doc, dhwani_meta) or has_changes
-			has_changes = self._sync_role_profiles(user_doc) or has_changes
+			if not skip_role_profiles:
+				has_changes = self._sync_role_profiles(user_doc) or has_changes
 			has_changes = self._sync_roles(user_doc) or has_changes
+			has_changes = self._sync_module_profile(user_doc) or has_changes
 			if has_changes:
 				user_doc.reload()
 				self._sync_common_fields(user_doc, dhwani_meta)
-				self._sync_role_profiles(user_doc)
+				if not skip_role_profiles:
+					self._sync_role_profiles(user_doc)
 				self._sync_roles(user_doc)
+				self._sync_module_profile(user_doc)
 				# Set flag to prevent User->Dhwani sync loop
 				setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
 				try:
@@ -293,15 +342,14 @@ class UserManager(Document):
 						delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
 		except Exception as e:
 			error_msg = str(e)
-			if "has been modified" in error_msg:
-				# Version conflict - will sync on next save, not critical
-				pass
-			else:
-				frappe.throw(_("Error syncing to User doctype: {0}").format(e))
+			if "has been modified" not in error_msg:
+				frappe.throw(_("Error syncing to User doctype: {0}").format(str(e)))
 		finally:
 			try:
 				if hasattr(frappe.flags, sync_flag):
 					delattr(frappe.flags, sync_flag)
+				if hasattr(frappe.flags, f"user_just_created_{user_email}"):
+					delattr(frappe.flags, f"user_just_created_{user_email}")
 			except (KeyError, AttributeError):
 				pass
 
@@ -386,6 +434,16 @@ class UserManager(Document):
 					if role_profile_value:
 						dhwani_role_profiles.append(role_profile_value)
 
+			# Safety: Don't clear if source is empty but user has profiles
+			if not dhwani_role_profiles and current_role_profiles:
+				frappe.throw(
+					_(
+						"UserManager {0}: Role profiles missing in source. "
+						"User {1} has {2} role profile(s) but User Manager has none. "
+						"Please select role profiles in User Manager."
+					).format(self.name, user_doc.name, len(current_role_profiles))
+				)
+
 			if set(current_role_profiles) != set(dhwani_role_profiles):
 				user_doc.role_profiles = []
 				for role_profile_value in dhwani_role_profiles:
@@ -403,6 +461,28 @@ class UserManager(Document):
 			if roles_to_add:
 				user_doc.add_roles(*roles_to_add)
 				has_changes = True
+		return has_changes
+
+	def _sync_module_profile(self, user_doc):
+		"""Sync module_profile and block_modules from User Manager to User doctype"""
+		has_changes = False
+		um_profile = getattr(self, "module_profile", None) or ""
+		if hasattr(user_doc, "module_profile") and user_doc.module_profile != um_profile:
+			user_doc.module_profile = um_profile
+			has_changes = True
+		if not hasattr(user_doc, "block_modules"):
+			return has_changes
+		current_blocked = [r.module for r in (user_doc.block_modules or []) if r.module]
+		um_blocked = [
+			getattr(r, "module", None)
+			for r in (getattr(self, "block_modules", []) or [])
+			if getattr(r, "module", None)
+		]
+		if set(current_blocked) != set(um_blocked):
+			user_doc.set("block_modules", [])
+			for mod in um_blocked:
+				user_doc.append("block_modules", {"module": mod})
+			has_changes = True
 		return has_changes
 
 	def update_user_password(self):
@@ -591,3 +671,36 @@ def get_username_from_user(email: str):
 		return {"username": username or ""}
 
 	return {"username": ""}
+
+
+@frappe.whitelist()
+def get_module_profile(module_profile: str):
+	"""Return block_modules for the given Module Profile (same as Frappe User form)."""
+	if not module_profile:
+		return []
+	try:
+		# Module Profile autoname is field:module_profile_name, so name may match link value
+		doc = frappe.get_doc("Module Profile", {"module_profile_name": module_profile})
+	except Exception:
+		try:
+			doc = frappe.get_doc("Module Profile", module_profile)
+		except Exception:
+			return []
+	return doc.get("block_modules") or []
+
+
+@frappe.whitelist()
+def get_all_modules():
+	"""Return sorted list of module names for the module checkbox grid (same as User __onload)."""
+
+	return sorted(m.get("module_name") for m in get_modules_from_all_apps())
+
+
+@frappe.whitelist()
+def get_all_role_profiles():
+	"""Return all role profile names sorted alphabetically (case-insensitive)"""
+	role_profiles = frappe.get_all("Role Profile", fields=["role_profile"])
+	return sorted(
+		[rp.get("role_profile").strip() for rp in role_profiles if rp.get("role_profile")],
+		key=str.lower,
+	)
