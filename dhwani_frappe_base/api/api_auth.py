@@ -86,22 +86,22 @@ def login(username: str | None = None, password: str | None = None) -> None:
 
 		frappe.local.login_manager.logout()
 
-		# Clear unwanted fields set by post_login()
-		frappe.local.response.pop("message", None)
-		frappe.local.response.pop("home_page", None)
-		frappe.response.pop("full_name", None)
-
 		# Get mobile configuration
 		mobile_config = _get_mobile_configuration()
 
-		# Set only the required response fields
+		# Match Frappe's standard API response structure:
+		# message = object with login data, home_page and full_name at root
 		frappe.local.response.update(
 			{
-				"message": _("Logged In"),
-				"user": user.name,
-				"full_name": user.full_name,
-				"token": token,
-				"mobile_doctypes": mobile_config,
+				"message": {
+					"message": _("Logged In"),
+					"user": user.name,
+					"full_name": user.full_name,
+					"token": token,
+					"mobile_doctypes": mobile_config,
+				},
+				"home_page": "/login",
+				"full_name": "Guest",
 			}
 		)
 
@@ -213,22 +213,22 @@ def verify_mobile_otp(tmp_id: str, otp: str) -> None:
 		user_doc, token = _generate_user_token(login_manager)
 		login_manager.logout()
 
-		# Clear unwanted fields set by post_login()
-		frappe.local.response.pop("message", None)
-		frappe.local.response.pop("home_page", None)
-		frappe.response.pop("full_name", None)
-
 		# Get mobile configuration
 		mobile_config = _get_mobile_configuration()
 
-		# Set only the required response fields
+		# Match Frappe's standard API response structure:
+		# message = object with login data, home_page and full_name at root
 		frappe.local.response.update(
 			{
-				"message": _("Logged In"),
-				"user": user_doc.name,
-				"full_name": user_doc.full_name,
-				"token": token,
-				"mobile_doctypes": mobile_config,
+				"message": {
+					"message": _("Logged In"),
+					"user": user_doc.name,
+					"full_name": user_doc.full_name,
+					"token": token,
+					"mobile_doctypes": mobile_config,
+				},
+				"home_page": "/login",
+				"full_name": "Guest",
 			}
 		)
 
