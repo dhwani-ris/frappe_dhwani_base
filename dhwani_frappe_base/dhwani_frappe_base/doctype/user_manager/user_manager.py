@@ -102,12 +102,12 @@ class UserManager(Document):
 		if not self.email:
 			return
 
-		if hasattr(self.flags, "new_password_value") and self.flags.new_password_value:
-			self.update_user_password()
-
 		user = self.get_user_from_email()
 		if not user:
 			return
+
+		if hasattr(self.flags, "new_password_value") and self.flags.new_password_value:
+			self.update_user_password()
 
 		self.delete_existing_user_permissions(user)
 		self.create_user_permission(user)
