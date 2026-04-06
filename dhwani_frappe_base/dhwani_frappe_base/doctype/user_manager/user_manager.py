@@ -126,15 +126,13 @@ class UserManager(Document):
 		user_created = False
 		try:
 			user_doc = self._create_user_document()
+			user_created = True  # User inserted; cleanup if anything below fails
 			self._apply_role_profiles_to_user(user_doc)
 			self._apply_roles_to_user(user_doc)
 			self._apply_module_profile_to_user(user_doc)
 			user_doc.flags.ignore_validate = True
 			user_doc.save(ignore_permissions=True)
-			user_created = True
 			self._sync_username_from_user()
-			setattr(frappe.flags, f"user_just_created_{self.email}", True)
-			return self.email
 		except Exception as e:
 			# Cleanup partially created user if creation failed
 			if user_created and frappe.db.exists("User", self.email):
@@ -150,8 +148,14 @@ class UserManager(Document):
 			except (KeyError, AttributeError):
 				pass
 
+		# Send welcome email only after user is fully set up with role profiles.
+		# Outside try block so email failure never rolls back user creation.
+		self._send_welcome_email()
+		return self.email
+
 	def _create_user_document(self):
-		"""Create new User document"""
+		"""Create new User document. send_welcome_email is intentionally 0 here — welcome
+		email is sent explicitly after role profiles are applied (see _send_welcome_email)."""
 		enabled = 1 if getattr(self, "status", STATUS_ACTIVE) == STATUS_ACTIVE else 0
 		user_doc = frappe.get_doc(
 			{
@@ -160,7 +164,7 @@ class UserManager(Document):
 				"first_name": self.full_name or self.email.split("@")[0],
 				"full_name": self.full_name or self.email.split("@")[0],
 				"enabled": enabled,
-				"send_welcome_email": 1,
+				"send_welcome_email": 0,
 			}
 		)
 
@@ -175,6 +179,31 @@ class UserManager(Document):
 		user_doc.reload()
 
 		return user_doc
+
+	def _send_welcome_email(self):
+		"""Send Frappe welcome email (Complete Registration link) to the newly created user.
+		Email failure is non-fatal: logs an error and shows an amber alert so the admin
+		knows to resend, but the user record and role profiles are already committed."""
+		try:
+			user_doc = frappe.get_doc("User", self.email)
+			user_doc.send_welcome_mail_to_user()
+			frappe.msgprint(
+				_("Welcome email sent to {0}").format(self.email),
+				indicator="green",
+				alert=True,
+			)
+		except Exception as e:
+			frappe.log_error(
+				f"Welcome email failed for {self.email}: {e}", "User Manager - Welcome Email"
+			)
+			frappe.msgprint(
+				_(
+					"User {0} was created with role profiles, but the welcome email could not be sent. "
+					"Please check your email settings or resend manually."
+				).format(self.email),
+				indicator="orange",
+				alert=True,
+			)
 
 	def _apply_role_profiles_to_user(self, user_doc):
 		"""Apply role profiles from User Manager to User"""
@@ -303,53 +332,35 @@ class UserManager(Document):
 		return roles
 
 	def sync_to_user_doctype(self, user_email):
-		"""Sync all fields automatically to User doctype"""
+		"""Sync all fields to User doctype. Always applies every sync and surfaces errors."""
 		if not user_email or not frappe.db.exists("User", user_email):
 			return
-		# Check if sync is already in progress to prevent loops
 		if getattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, False):
 			return
-		# Use a flag to prevent concurrent syncs
 		sync_flag = f"syncing_user_{user_email}"
 		if hasattr(frappe.flags, sync_flag) and getattr(frappe.flags, sync_flag, False):
 			return
-		skip_role_profiles = getattr(frappe.flags, f"user_just_created_{user_email}", False)
 		try:
 			setattr(frappe.flags, sync_flag, True)
 			user_doc = frappe.get_doc("User", user_email)
-			user_doc.reload()
-			has_changes = False
 			dhwani_meta = frappe.get_meta("User Manager")
-			has_changes = self._sync_common_fields(user_doc, dhwani_meta) or has_changes
-			if not skip_role_profiles:
-				has_changes = self._sync_role_profiles(user_doc) or has_changes
-			has_changes = self._sync_roles(user_doc) or has_changes
-			has_changes = self._sync_module_profile(user_doc) or has_changes
-			if has_changes:
-				user_doc.reload()
-				self._sync_common_fields(user_doc, dhwani_meta)
-				if not skip_role_profiles:
-					self._sync_role_profiles(user_doc)
-				self._sync_roles(user_doc)
-				self._sync_module_profile(user_doc)
-				# Set flag to prevent User->Dhwani sync loop
-				setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
-				try:
-					user_doc.flags.ignore_validate = True
-					user_doc.save(ignore_permissions=True)
-				finally:
-					if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
-						delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
+			self._sync_common_fields(user_doc, dhwani_meta)
+			self._sync_role_profiles(user_doc)
+			self._sync_roles(user_doc)
+			self._sync_module_profile(user_doc)
+			setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
+			try:
+				user_doc.flags.ignore_validate = True
+				user_doc.save(ignore_permissions=True)
+			finally:
+				if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
+					delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
 		except Exception as e:
-			error_msg = str(e)
-			if "has been modified" not in error_msg:
-				frappe.throw(_("Error syncing to User doctype: {0}").format(str(e)))
+			frappe.throw(_("Error syncing to User doctype: {0}").format(str(e)))
 		finally:
 			try:
 				if hasattr(frappe.flags, sync_flag):
 					delattr(frappe.flags, sync_flag)
-				if hasattr(frappe.flags, f"user_just_created_{user_email}"):
-					delattr(frappe.flags, f"user_just_created_{user_email}")
 			except (KeyError, AttributeError):
 				pass
 
