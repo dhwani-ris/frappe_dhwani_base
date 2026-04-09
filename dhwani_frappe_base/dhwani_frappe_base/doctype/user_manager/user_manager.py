@@ -127,11 +127,16 @@ class UserManager(Document):
 		try:
 			user_doc = self._create_user_document()
 			user_created = True  # User inserted; cleanup if anything below fails
-			self._apply_role_profiles_to_user(user_doc)
-			self._apply_roles_to_user(user_doc)
-			self._apply_module_profile_to_user(user_doc)
-			user_doc.flags.ignore_validate = True
-			user_doc.save(ignore_permissions=True)
+			role_profiles_changed = self._apply_role_profiles_to_user(user_doc)
+			roles_applied = self._apply_roles_to_user(user_doc)
+			# add_roles() internally saves User and may trigger hooks that save User again.
+			# Reload to avoid stale in-memory timestamps before any further updates.
+			if roles_applied:
+				user_doc.reload()
+			module_profile_changed = self._apply_module_profile_to_user(user_doc)
+			if module_profile_changed or (role_profiles_changed and not roles_applied):
+				user_doc.flags.ignore_validate = True
+				user_doc.save(ignore_permissions=True)
 			self._sync_username_from_user()
 		except Exception as e:
 			# Cleanup partially created user if creation failed
@@ -207,21 +212,26 @@ class UserManager(Document):
 
 	def _apply_role_profiles_to_user(self, user_doc):
 		"""Apply role profiles from User Manager to User"""
+		has_changes = False
 		role_profiles_table = self._get_role_profiles_table()
 		if role_profiles_table and hasattr(user_doc, "role_profiles"):
 			user_doc.role_profiles = []
+			has_changes = True
 			for role_row in role_profiles_table:
 				role_profile_value = getattr(role_row, "role_profile", None) or getattr(
 					role_row, "user_role_profile", None
 				)
 				if role_profile_value:
 					user_doc.append("role_profiles", {"role_profile": role_profile_value})
+		return has_changes
 
 	def _apply_roles_to_user(self, user_doc):
 		"""Apply roles from User Manager to User"""
 		roles_list = self._get_all_roles()
 		if roles_list:
 			user_doc.add_roles(*roles_list)
+			return True
+		return False
 
 	def _validate_allowed_modules(self):
 		"""When module_profile is set, sync block_modules from Module Profile (same as Frappe User)"""
@@ -238,14 +248,26 @@ class UserManager(Document):
 
 	def _apply_module_profile_to_user(self, user_doc):
 		"""Apply module_profile and block_modules from User Manager to User"""
+		has_changes = False
 		if hasattr(user_doc, "module_profile"):
-			user_doc.module_profile = getattr(self, "module_profile", None) or ""
+			module_profile_value = getattr(self, "module_profile", None) or ""
+			if user_doc.module_profile != module_profile_value:
+				user_doc.module_profile = module_profile_value
+				has_changes = True
 		if not hasattr(user_doc, "block_modules"):
-			return
+			return has_changes
+		current_blocked = [r.module for r in (user_doc.block_modules or []) if r.module]
+		target_blocked = [
+			getattr(row, "module", None)
+			for row in (getattr(self, "block_modules", []) or [])
+			if getattr(row, "module", None)
+		]
+		if set(current_blocked) == set(target_blocked):
+			return has_changes
 		user_doc.set("block_modules", [])
-		for row in getattr(self, "block_modules", []) or []:
-			if getattr(row, "module", None):
-				user_doc.append("block_modules", {"module": row.module})
+		for module_name in target_blocked:
+			user_doc.append("block_modules", {"module": module_name})
+		return True
 
 	def _sync_username_from_user(self):
 		"""Sync username from User to User Manager"""
@@ -344,14 +366,20 @@ class UserManager(Document):
 			setattr(frappe.flags, sync_flag, True)
 			user_doc = frappe.get_doc("User", user_email)
 			dhwani_meta = frappe.get_meta("User Manager")
-			self._sync_common_fields(user_doc, dhwani_meta)
-			self._sync_role_profiles(user_doc)
-			self._sync_roles(user_doc)
-			self._sync_module_profile(user_doc)
+			common_changed = self._sync_common_fields(user_doc, dhwani_meta)
+			role_profiles_changed = self._sync_role_profiles(user_doc)
+			roles_changed = self._sync_roles(user_doc)
+			if roles_changed:
+				# _sync_roles uses add_roles(), which saves User internally.
+				# Reload to avoid stale timestamps before further mutation/saves.
+				user_doc.reload()
+			module_changed = self._sync_module_profile(user_doc)
+			needs_save = module_changed or ((common_changed or role_profiles_changed) and not roles_changed)
 			setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
 			try:
-				user_doc.flags.ignore_validate = True
-				user_doc.save(ignore_permissions=True)
+				if needs_save:
+					user_doc.flags.ignore_validate = True
+					user_doc.save(ignore_permissions=True)
 			finally:
 				if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
 					delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
