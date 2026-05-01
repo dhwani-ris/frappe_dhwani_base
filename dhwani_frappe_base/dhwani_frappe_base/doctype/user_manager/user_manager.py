@@ -12,6 +12,8 @@ from frappe.utils.password import update_password
 SYNC_FLAG_USER_TO_DHWANI = "syncing_user_to_dhwani"
 STATUS_ACTIVE = "Active"
 STATUS_INACTIVE = "Inactive"
+# Roles Frappe attaches to every user automatically — never remove these during sync
+SYSTEM_ROLES = {"All", "Guest"}
 
 
 class UserManager(Document):
@@ -364,26 +366,19 @@ class UserManager(Document):
 			return
 		try:
 			setattr(frappe.flags, sync_flag, True)
-			# Set SYNC_FLAG before any User saves — add_roles() calls user_doc.save()
-			# internally, which would otherwise trigger sync_user_to_user_manager and create
-			# a nested UserManager.on_update cycle that deletes permissions mid-flight.
+			# Set SYNC_FLAG before saving User — the final user_doc.save() triggers
+			# sync_user_to_user_manager which would otherwise create a nested
+			# UserManager.on_update cycle that deletes permissions mid-flight.
 			setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
 			try:
 				user_doc = frappe.get_doc("User", user_email)
 				dhwani_meta = frappe.get_meta("User Manager")
-				# Sync roles first: add_roles() saves User internally, so it must complete
-				# before we apply role_profiles / common fields that would otherwise be wiped
-				# by the subsequent reload().
+				# All sync methods are in-memory; a single save at the end is sufficient.
 				roles_changed = self._sync_roles(user_doc)
-				if roles_changed:
-					# add_roles() already persisted new roles; reload to get a clean slate
-					# before writing role_profiles and other fields on top.
-					user_doc.reload()
-				# Apply everything else after any reload caused by add_roles().
 				common_changed = self._sync_common_fields(user_doc, dhwani_meta)
 				role_profiles_changed = self._sync_role_profiles(user_doc)
 				module_changed = self._sync_module_profile(user_doc)
-				needs_save = common_changed or role_profiles_changed or module_changed
+				needs_save = roles_changed or common_changed or role_profiles_changed or module_changed
 				if needs_save:
 					user_doc.flags.ignore_validate = True
 					user_doc.save(ignore_permissions=True)
@@ -498,16 +493,36 @@ class UserManager(Document):
 		return has_changes
 
 	def _sync_roles(self, user_doc):
-		"""Sync roles from User Manager to User doctype"""
-		has_changes = False
-		roles_list = self._get_all_roles()
-		if roles_list:
-			current_roles = [r.role for r in user_doc.roles if r.role]
-			roles_to_add = [r for r in roles_list if r not in current_roles]
-			if roles_to_add:
-				user_doc.add_roles(*roles_to_add)
-				has_changes = True
-		return has_changes
+		"""Sync roles from User Manager to User doctype (in-memory; caller must save).
+
+		Replaces the full role set so that removing a role profile also removes its roles.
+		SYSTEM_ROLES (All, Guest) are always preserved regardless of role profiles.
+		"""
+		target_roles = set(self._get_all_roles())
+		current_roles = {r.role for r in user_doc.roles if r.role}
+
+		# Safety: if role profiles are configured but resolve to zero roles, something is
+		# wrong (misspelled profile name, empty profile, etc.). Refuse to wipe managed roles.
+		managed_current = current_roles - SYSTEM_ROLES
+		if not target_roles and managed_current:
+			frappe.throw(
+				_(
+					"UserManager {0}: Role Profiles resolved to no roles. "
+					"User {1} currently has {2} role(s) but none could be derived from the "
+					"configured Role Profiles. Check that each Role Profile contains at least one role."
+				).format(self.name, user_doc.name, len(managed_current))
+			)
+
+		protected = current_roles & SYSTEM_ROLES
+		final_roles = target_roles | protected
+
+		if final_roles == current_roles:
+			return False
+
+		user_doc.roles = []
+		for role in final_roles:
+			user_doc.append("roles", {"role": role})
+		return True
 
 	def _sync_module_profile(self, user_doc):
 		"""Sync module_profile and block_modules from User Manager to User doctype"""
