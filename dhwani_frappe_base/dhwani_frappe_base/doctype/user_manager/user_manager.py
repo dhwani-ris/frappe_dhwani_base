@@ -504,9 +504,7 @@ class UserManager(Document):
 				self.email, password_value, doctype="User", fieldname="password", logout_all_sessions=False
 			)
 
-			frappe.db.set_value(
-				"User Manager", self.name, "new_password", None, update_modified=False
-			)
+			frappe.db.set_value("User Manager", self.name, "new_password", None, update_modified=False)
 
 			frappe.msgprint(
 				_("Password updated successfully for user {0}").format(self.email),
@@ -545,9 +543,7 @@ class UserManager(Document):
 				continue
 			key = (row.program, row.project)
 			if key in seen:
-				frappe.throw(
-					_("Duplicate Program Access entry: {0} - {1}").format(row.program, row.project)
-				)
+				frappe.throw(_("Duplicate Program Access entry: {0} - {1}").format(row.program, row.project))
 			seen.add(key)
 
 	def _validate_program_access_hierarchy(self, program_access_table):

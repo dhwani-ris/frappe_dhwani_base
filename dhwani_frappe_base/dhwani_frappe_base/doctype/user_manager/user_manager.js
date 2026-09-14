@@ -381,7 +381,9 @@ function update_block_modules_from_checkboxes(frm) {
 }
 
 function setup_program_access_link_filter(frm) {
-	frm.set_query("project", "table_fkmn", (doc, cdt, cdn) => get_program_access_filters(frm, cdn));
+	frm.set_query("project", "table_fkmn", (doc, cdt, cdn) =>
+		get_program_access_filters(frm, cdn)
+	);
 
 	// Pre-fetch metas for doctypes already selected (e.g. on opening an existing
 	// document) so the filter above can resolve them synchronously.
@@ -443,20 +445,21 @@ function reconcile_program_access_table(frm, changed_cdn) {
 				const allowed_values = sibling_values_by_program[field.options];
 				if (!allowed_values || !allowed_values.length) return;
 
-				frappe.db.get_value(row.program, row.project, field.fieldname).then(({ message }) => {
-					const current_value = message && message[field.fieldname];
-					if (current_value && !allowed_values.includes(current_value)) {
-						frappe.model.set_value(row.doctype, row.name, "project", "");
-						frappe.show_alert({
-							message: __("Cleared {0} value {1}: it no longer belongs to the selected {2}", [
-								__(row.program),
-								row.project,
-								__(field.options),
-							]),
-							indicator: "orange",
-						});
-					}
-				});
+				frappe.db
+					.get_value(row.program, row.project, field.fieldname)
+					.then(({ message }) => {
+						const current_value = message && message[field.fieldname];
+						if (current_value && !allowed_values.includes(current_value)) {
+							frappe.model.set_value(row.doctype, row.name, "project", "");
+							frappe.show_alert({
+								message: __(
+									"Cleared {0} value {1}: it no longer belongs to the selected {2}",
+									[__(row.program), row.project, __(field.options)]
+								),
+								indicator: "orange",
+							});
+						}
+					});
 			});
 		});
 	});

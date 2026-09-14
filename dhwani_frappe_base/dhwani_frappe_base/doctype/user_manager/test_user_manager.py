@@ -4,8 +4,8 @@
 from types import SimpleNamespace
 
 import frappe
-from frappe.tests import IntegrationTestCase, UnitTestCase
-
+from frappe.tests import IntegrationTestCase
+from frappe.tests import UnitTestCase
 from dhwani_frappe_base.dhwani_frappe_base.doctype.user_manager.user_manager import UserManager
 
 # On IntegrationTestCase, the doctype test records and all
@@ -91,9 +91,9 @@ class IntegrationTestUserManager(IntegrationTestCase):
 	@classmethod
 	def _ensure_state(cls, state_name, state_code):
 		if not frappe.db.exists("State", state_name):
-			frappe.get_doc(
-				{"doctype": "State", "state_name": state_name, "state_code": state_code}
-			).insert(ignore_permissions=True)
+			frappe.get_doc({"doctype": "State", "state_name": state_name, "state_code": state_code}).insert(
+				ignore_permissions=True
+			)
 
 	@classmethod
 	def _ensure_district(cls, district_name, district_code, state_name):
