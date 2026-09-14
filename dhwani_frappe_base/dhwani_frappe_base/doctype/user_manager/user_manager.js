@@ -17,6 +17,7 @@ frappe.ui.form.on("User Manager", {
 		}
 
 		render_module_checkboxes(frm);
+		setup_program_access_link_filter(frm);
 	},
 
 	module_profile(frm) {
@@ -52,6 +53,29 @@ frappe.ui.form.on("User Manager", {
 
 	role_profile_html(frm) {
 		setup_checkbox_listeners(frm);
+	},
+});
+
+// Filters the "For Value" (Dynamic Link) options in the Program Access table:
+// if a row's doctype (e.g. District) has a Link field to another doctype already
+// selected elsewhere in the table (e.g. State), only records belonging to that
+// value are offered - e.g. picking State = Delhi restricts District to Delhi's
+// districts. Server-side enforcement of the same rule lives in
+// UserManager._validate_program_access_hierarchy, so this is UX only.
+frappe.ui.form.on("Program Access", {
+	program(frm, cdt, cdn) {
+		// The set of valid "For Value" options changes with the doctype, so any
+		// previously picked value is no longer guaranteed valid.
+		frappe.model.set_value(cdt, cdn, "project", "");
+
+		const row = locals[cdt][cdn];
+		if (row.program) {
+			// Needed synchronously by get_program_access_filters below.
+			frappe.model.with_doctype(row.program);
+		}
+	},
+	project(frm, cdt, cdn) {
+		reconcile_program_access_table(frm, cdn);
 	},
 });
 
@@ -354,4 +378,89 @@ function update_block_modules_from_checkboxes(frm) {
 	});
 	frm.dirty();
 	frm.refresh_field("block_modules");
+}
+
+function setup_program_access_link_filter(frm) {
+	frm.set_query("project", "table_fkmn", (doc, cdt, cdn) =>
+		get_program_access_filters(frm, cdn)
+	);
+
+	// Pre-fetch metas for doctypes already selected (e.g. on opening an existing
+	// document) so the filter above can resolve them synchronously.
+	(frm.doc.table_fkmn || []).forEach((row) => {
+		if (row.program) frappe.model.with_doctype(row.program);
+	});
+}
+
+function get_sibling_values_by_program(frm, exclude_cdn) {
+	const values_by_program = {};
+	(frm.doc.table_fkmn || []).forEach((row) => {
+		if (row.name === exclude_cdn || !row.program || !row.project) return;
+		if (!values_by_program[row.program]) values_by_program[row.program] = [];
+		if (!values_by_program[row.program].includes(row.project)) {
+			values_by_program[row.program].push(row.project);
+		}
+	});
+	return values_by_program;
+}
+
+function get_program_access_filters(frm, cdn) {
+	const row = locals["Program Access"][cdn];
+	if (!row || !row.program) return {};
+
+	const meta = frappe.get_meta(row.program);
+	if (!meta) return {};
+
+	const sibling_values_by_program = get_sibling_values_by_program(frm, cdn);
+
+	const filters = {};
+	(meta.fields || [])
+		.filter((field) => field.fieldtype === "Link" && field.options)
+		.forEach((field) => {
+			const values = sibling_values_by_program[field.options];
+			if (values && values.length) {
+				filters[field.fieldname] = ["in", values];
+			}
+		});
+
+	return { filters };
+}
+
+function reconcile_program_access_table(frm, changed_cdn) {
+	const rows = frm.doc.table_fkmn || [];
+
+	rows.forEach((row) => {
+		if (!row.program || !row.project) return;
+
+		frappe.model.with_doctype(row.program, () => {
+			const meta = frappe.get_meta(row.program);
+			const link_fields = (meta.fields || []).filter(
+				(field) => field.fieldtype === "Link" && field.options
+			);
+			if (!link_fields.length) return;
+
+			const sibling_values_by_program = get_sibling_values_by_program(frm, row.name);
+
+			link_fields.forEach((field) => {
+				const allowed_values = sibling_values_by_program[field.options];
+				if (!allowed_values || !allowed_values.length) return;
+
+				frappe.db
+					.get_value(row.program, row.project, field.fieldname)
+					.then(({ message }) => {
+						const current_value = message && message[field.fieldname];
+						if (current_value && !allowed_values.includes(current_value)) {
+							frappe.model.set_value(row.doctype, row.name, "project", "");
+							frappe.show_alert({
+								message: __(
+									"Cleared {0} value {1}: it no longer belongs to the selected {2}",
+									[__(row.program), row.project, __(field.options)]
+								),
+								indicator: "orange",
+							});
+						}
+					});
+			});
+		});
+	});
 }
