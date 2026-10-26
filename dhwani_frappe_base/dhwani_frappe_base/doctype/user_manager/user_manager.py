@@ -3,6 +3,7 @@
 
 import frappe
 from frappe import _
+from frappe.model import table_fields
 from frappe.model.document import Document
 from frappe.model.naming import append_number_if_name_exists
 from frappe.utils import validate_phone_number
@@ -12,6 +13,11 @@ from frappe.utils.password import update_password
 SYNC_FLAG_USER_TO_DHWANI = "syncing_user_to_dhwani"
 STATUS_ACTIVE = "Active"
 STATUS_INACTIVE = "Inactive"
+
+# Child tables User and User Manager share, with the field that identifies a row.
+# Synced by value: handing one document's row objects to the other re-parents
+# those rows in the database when the other document saves.
+SHARED_CHILD_TABLES = {"role_profiles": "role_profile", "block_modules": "module"}
 
 
 class UserManager(Document):
@@ -684,6 +690,9 @@ def _sync_fields_from_user(user_doc, dhwani_doc):
 		if fieldname in ["name", "owner", "creation", "modified", "modified_by", "idx"]:
 			continue
 
+		if user_meta.get_field(fieldname).fieldtype in table_fields:
+			continue
+
 		if hasattr(user_doc, fieldname) and hasattr(dhwani_doc, fieldname):
 			user_value = getattr(user_doc, fieldname, None)
 			dhwani_value = getattr(dhwani_doc, fieldname, None)
@@ -705,7 +714,28 @@ def _sync_fields_from_user(user_doc, dhwani_doc):
 	# Sync image fields
 	has_changes = _sync_image_fields_from_user(user_doc, dhwani_doc) or has_changes
 
+	for fieldname, key in SHARED_CHILD_TABLES.items():
+		has_changes = _sync_child_table_from_user(user_doc, dhwani_doc, fieldname, key) or has_changes
+
 	return has_changes
+
+
+def _sync_child_table_from_user(user_doc, dhwani_doc, fieldname, key):
+	"""Copy a shared child table's values from User to User Manager as new rows"""
+	if not (user_doc.meta.has_field(fieldname) and dhwani_doc.meta.has_field(fieldname)):
+		return False
+
+	user_values = [row.get(key) for row in user_doc.get(fieldname) if row.get(key)]
+	dhwani_values = [row.get(key) for row in dhwani_doc.get(fieldname) if row.get(key)]
+	if set(user_values) == set(dhwani_values):
+		return False
+	# A User saved without role profiles must not wipe them from User Manager,
+	# which requires at least one (see UserManager._sync_role_profiles).
+	if fieldname == "role_profiles" and not user_values:
+		return False
+
+	dhwani_doc.set(fieldname, [{key: value} for value in user_values])
+	return True
 
 
 @frappe.whitelist()
