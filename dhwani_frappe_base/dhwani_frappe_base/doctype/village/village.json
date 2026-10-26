@@ -22,7 +22,8 @@
    "in_list_view": 1,
    "label": "Block",
    "options": "Block",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fieldname": "column_break_weyy",
@@ -59,13 +60,14 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "label": "Grampanchayat",
-   "options": "Grampanchayat"
+   "options": "Grampanchayat",
+   "search_index": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-12-09 12:03:19.349472",
+ "modified": "2026-10-26 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Village",

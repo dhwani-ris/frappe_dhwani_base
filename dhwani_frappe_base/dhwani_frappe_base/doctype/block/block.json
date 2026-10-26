@@ -29,7 +29,8 @@
    "in_list_view": 1,
    "label": "District",
    "options": "District",
-   "reqd": 1
+   "reqd": 1,
+   "search_index": 1
   },
   {
    "fieldname": "block_code",
@@ -56,7 +57,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-12-09 12:02:49.742100",
+ "modified": "2026-10-26 18:00:00.000000",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "Block",
