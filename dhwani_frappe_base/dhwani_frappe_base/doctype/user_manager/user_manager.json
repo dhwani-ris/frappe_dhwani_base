@@ -51,7 +51,6 @@
    "fieldtype": "Data",
    "in_list_view": 1,
    "label": "Full Name",
-   "read_only_depends_on": "eval:!doc.__islocal",
    "reqd": 1
   },
   {
@@ -184,7 +183,7 @@
  "image_field": "cover_image",
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-02-11 15:10:14.866050",
+ "modified": "2026-04-30 02:05:22.520186",
  "modified_by": "Administrator",
  "module": "Dhwani Frappe Base",
  "name": "User Manager",
@@ -210,5 +209,6 @@
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [],
- "title_field": "full_name"
+ "title_field": "full_name",
+ "track_changes": 1
 }

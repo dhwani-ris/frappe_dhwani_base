@@ -12,6 +12,8 @@ from frappe.utils.password import update_password
 SYNC_FLAG_USER_TO_DHWANI = "syncing_user_to_dhwani"
 STATUS_ACTIVE = "Active"
 STATUS_INACTIVE = "Inactive"
+# Roles Frappe attaches to every user automatically — never remove these during sync
+SYSTEM_ROLES = {"All", "Guest"}
 
 
 class UserManager(Document):
@@ -101,12 +103,12 @@ class UserManager(Document):
 		if not self.email:
 			return
 
-		if hasattr(self.flags, "new_password_value") and self.flags.new_password_value:
-			self.update_user_password()
-
 		user = self.get_user_from_email()
 		if not user:
 			return
+
+		if hasattr(self.flags, "new_password_value") and self.flags.new_password_value:
+			self.update_user_password()
 
 		self.delete_existing_user_permissions(user)
 		self.create_user_permission(user)
@@ -125,15 +127,18 @@ class UserManager(Document):
 		user_created = False
 		try:
 			user_doc = self._create_user_document()
-			self._apply_role_profiles_to_user(user_doc)
-			self._apply_roles_to_user(user_doc)
-			self._apply_module_profile_to_user(user_doc)
-			user_doc.flags.ignore_validate = True
-			user_doc.save(ignore_permissions=True)
-			user_created = True
+			user_created = True  # User inserted; cleanup if anything below fails
+			role_profiles_changed = self._apply_role_profiles_to_user(user_doc)
+			roles_applied = self._apply_roles_to_user(user_doc)
+			# add_roles() internally saves User and may trigger hooks that save User again.
+			# Reload to avoid stale in-memory timestamps before any further updates.
+			if roles_applied:
+				user_doc.reload()
+			module_profile_changed = self._apply_module_profile_to_user(user_doc)
+			if module_profile_changed or (role_profiles_changed and not roles_applied):
+				user_doc.flags.ignore_validate = True
+				user_doc.save(ignore_permissions=True)
 			self._sync_username_from_user()
-			setattr(frappe.flags, f"user_just_created_{self.email}", True)
-			return self.email
 		except Exception as e:
 			# Cleanup partially created user if creation failed
 			if user_created and frappe.db.exists("User", self.email):
@@ -149,8 +154,14 @@ class UserManager(Document):
 			except (KeyError, AttributeError):
 				pass
 
+		# Send welcome email only after user is fully set up with role profiles.
+		# Outside try block so email failure never rolls back user creation.
+		self._send_welcome_email()
+		return self.email
+
 	def _create_user_document(self):
-		"""Create new User document"""
+		"""Create new User document. send_welcome_email is intentionally 0 here — welcome
+		email is sent explicitly after role profiles are applied (see _send_welcome_email)."""
 		enabled = 1 if getattr(self, "status", STATUS_ACTIVE) == STATUS_ACTIVE else 0
 		user_doc = frappe.get_doc(
 			{
@@ -159,7 +170,7 @@ class UserManager(Document):
 				"first_name": self.full_name or self.email.split("@")[0],
 				"full_name": self.full_name or self.email.split("@")[0],
 				"enabled": enabled,
-				"send_welcome_email": 1,
+				"send_welcome_email": 0,
 			}
 		)
 
@@ -175,23 +186,53 @@ class UserManager(Document):
 
 		return user_doc
 
+	def _send_welcome_email(self):
+		"""Send Frappe welcome email (Complete Registration link) to the newly created user.
+		Email failure is non-fatal: logs an error and shows an amber alert so the admin
+		knows to resend, but the user record and role profiles are already committed."""
+		try:
+			user_doc = frappe.get_doc("User", self.email)
+			user_doc.send_welcome_mail_to_user()
+			frappe.msgprint(
+				_("Welcome email sent to {0}").format(self.email),
+				indicator="green",
+				alert=True,
+			)
+		except Exception as e:
+			frappe.log_error(
+				f"Welcome email failed for {self.email}: {e}", "User Manager - Welcome Email"
+			)
+			frappe.msgprint(
+				_(
+					"User {0} was created with role profiles, but the welcome email could not be sent. "
+					"Please check your email settings or resend manually."
+				).format(self.email),
+				indicator="orange",
+				alert=True,
+			)
+
 	def _apply_role_profiles_to_user(self, user_doc):
 		"""Apply role profiles from User Manager to User"""
+		has_changes = False
 		role_profiles_table = self._get_role_profiles_table()
 		if role_profiles_table and hasattr(user_doc, "role_profiles"):
 			user_doc.role_profiles = []
+			has_changes = True
 			for role_row in role_profiles_table:
 				role_profile_value = getattr(role_row, "role_profile", None) or getattr(
 					role_row, "user_role_profile", None
 				)
 				if role_profile_value:
 					user_doc.append("role_profiles", {"role_profile": role_profile_value})
+		return has_changes
 
 	def _apply_roles_to_user(self, user_doc):
 		"""Apply roles from User Manager to User"""
 		roles_list = self._get_all_roles()
 		if roles_list:
 			user_doc.add_roles(*roles_list)
+			return True
+		return False
 
 	def _validate_allowed_modules(self):
 		"""When module_profile is set, sync block_modules from Module Profile (same as Frappe User)"""
@@ -208,14 +249,26 @@ class UserManager(Document):
 
 	def _apply_module_profile_to_user(self, user_doc):
 		"""Apply module_profile and block_modules from User Manager to User"""
+		has_changes = False
 		if hasattr(user_doc, "module_profile"):
-			user_doc.module_profile = getattr(self, "module_profile", None) or ""
+			module_profile_value = getattr(self, "module_profile", None) or ""
+			if user_doc.module_profile != module_profile_value:
+				user_doc.module_profile = module_profile_value
+				has_changes = True
 		if not hasattr(user_doc, "block_modules"):
-			return
+			return has_changes
+		current_blocked = [r.module for r in (user_doc.block_modules or []) if r.module]
+		target_blocked = [
+			getattr(row, "module", None)
+			for row in (getattr(self, "block_modules", []) or [])
+			if getattr(row, "module", None)
+		]
+		if set(current_blocked) == set(target_blocked):
+			return has_changes
 		user_doc.set("block_modules", [])
-		for row in getattr(self, "block_modules", []) or []:
-			if getattr(row, "module", None):
-				user_doc.append("block_modules", {"module": row.module})
+		for module_name in target_blocked:
+			user_doc.append("block_modules", {"module": module_name})
+		return True
 
 	def _sync_username_from_user(self):
 		"""Sync username from User to User Manager"""
@@ -302,53 +355,41 @@ class UserManager(Document):
 		return roles
 
 	def sync_to_user_doctype(self, user_email):
-		"""Sync all fields automatically to User doctype"""
+		"""Sync all fields to User doctype. Always applies every sync and surfaces errors."""
 		if not user_email or not frappe.db.exists("User", user_email):
 			return
-		# Check if sync is already in progress to prevent loops
 		if getattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, False):
 			return
-		# Use a flag to prevent concurrent syncs
 		sync_flag = f"syncing_user_{user_email}"
 		if hasattr(frappe.flags, sync_flag) and getattr(frappe.flags, sync_flag, False):
 			return
-		skip_role_profiles = getattr(frappe.flags, f"user_just_created_{user_email}", False)
 		try:
 			setattr(frappe.flags, sync_flag, True)
-			user_doc = frappe.get_doc("User", user_email)
-			user_doc.reload()
-			has_changes = False
-			dhwani_meta = frappe.get_meta("User Manager")
-			has_changes = self._sync_common_fields(user_doc, dhwani_meta) or has_changes
-			if not skip_role_profiles:
-				has_changes = self._sync_role_profiles(user_doc) or has_changes
-			has_changes = self._sync_roles(user_doc) or has_changes
-			has_changes = self._sync_module_profile(user_doc) or has_changes
-			if has_changes:
-				user_doc.reload()
-				self._sync_common_fields(user_doc, dhwani_meta)
-				if not skip_role_profiles:
-					self._sync_role_profiles(user_doc)
-				self._sync_roles(user_doc)
-				self._sync_module_profile(user_doc)
-				# Set flag to prevent User->Dhwani sync loop
-				setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
-				try:
+			# Set SYNC_FLAG before saving User — the final user_doc.save() triggers
+			# sync_user_to_user_manager which would otherwise create a nested
+			# UserManager.on_update cycle that deletes permissions mid-flight.
+			setattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI, True)
+			try:
+				user_doc = frappe.get_doc("User", user_email)
+				dhwani_meta = frappe.get_meta("User Manager")
+				# All sync methods are in-memory; a single save at the end is sufficient.
+				roles_changed = self._sync_roles(user_doc)
+				common_changed = self._sync_common_fields(user_doc, dhwani_meta)
+				role_profiles_changed = self._sync_role_profiles(user_doc)
+				module_changed = self._sync_module_profile(user_doc)
+				needs_save = roles_changed or common_changed or role_profiles_changed or module_changed
+				if needs_save:
 					user_doc.flags.ignore_validate = True
 					user_doc.save(ignore_permissions=True)
-				finally:
-					if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
-						delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
+			finally:
+				if hasattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI):
+					delattr(frappe.flags, SYNC_FLAG_USER_TO_DHWANI)
 		except Exception as e:
-			error_msg = str(e)
-			if "has been modified" not in error_msg:
-				frappe.throw(_("Error syncing to User doctype: {0}").format(str(e)))
+			frappe.throw(_("Error syncing to User doctype: {0}").format(str(e)))
 		finally:
 			try:
 				if hasattr(frappe.flags, sync_flag):
 					delattr(frappe.flags, sync_flag)
-				if hasattr(frappe.flags, f"user_just_created_{user_email}"):
-					delattr(frappe.flags, f"user_just_created_{user_email}")
 			except (KeyError, AttributeError):
 				pass
 
@@ -391,6 +432,8 @@ class UserManager(Document):
 
 					if dhwani_normalized != user_normalized:
 						setattr(user_doc, fieldname, dhwani_value)
+						if fieldname == "full_name" and hasattr(user_doc, "first_name"):
+							user_doc.first_name = dhwani_value or ""
 						has_changes = True
 
 		status = getattr(self, "status", STATUS_ACTIVE)
@@ -451,16 +494,36 @@ class UserManager(Document):
 		return has_changes
 
 	def _sync_roles(self, user_doc):
-		"""Sync roles from User Manager to User doctype"""
-		has_changes = False
-		roles_list = self._get_all_roles()
-		if roles_list:
-			current_roles = [r.role for r in user_doc.roles if r.role]
-			roles_to_add = [r for r in roles_list if r not in current_roles]
-			if roles_to_add:
-				user_doc.add_roles(*roles_to_add)
-				has_changes = True
-		return has_changes
+		"""Sync roles from User Manager to User doctype (in-memory; caller must save).
+
+		Replaces the full role set so that removing a role profile also removes its roles.
+		SYSTEM_ROLES (All, Guest) are always preserved regardless of role profiles.
+		"""
+		target_roles = set(self._get_all_roles())
+		current_roles = {r.role for r in user_doc.roles if r.role}
+
+		# Safety: if role profiles are configured but resolve to zero roles, something is
+		# wrong (misspelled profile name, empty profile, etc.). Refuse to wipe managed roles.
+		managed_current = current_roles - SYSTEM_ROLES
+		if not target_roles and managed_current:
+			frappe.throw(
+				_(
+					"UserManager {0}: Role Profiles resolved to no roles. "
+					"User {1} currently has {2} role(s) but none could be derived from the "
+					"configured Role Profiles. Check that each Role Profile contains at least one role."
+				).format(self.name, user_doc.name, len(managed_current))
+			)
+
+		protected = current_roles & SYSTEM_ROLES
+		final_roles = target_roles | protected
+
+		if final_roles == current_roles:
+			return False
+
+		user_doc.roles = []
+		for role in final_roles:
+			user_doc.append("roles", {"role": role})
+		return True
 
 	def _sync_module_profile(self, user_doc):
 		"""Sync module_profile and block_modules from User Manager to User doctype"""
